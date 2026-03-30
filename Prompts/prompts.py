@@ -4,39 +4,37 @@
 # STEP 1
 # =========================
 
-RQ_GENERATION_PROMPT = """
-Generate three research questions about:
-{topic}
-Focus on scalability, robustness, and IoT.
+PROMPT_1_INITIAL_GENERATION = """
+Generate 3-5 research questions about {topic}.
 """
 
-FRAMEWORK_SELECTION_PROMPT = """
-Given the topic:
-{topic}
-
-Select the most appropriate research framework.
+PROMPT_2_FRAMEWORK_SELECTION = """
+Based on the research topic '{topic}', which framework (PICO, PICOC, SPIDER, SPICE, PEO) is most suitable for structuring a research question for a systematic review? Justify your answer.
 """
 
-REFINE_QUESTION_PROMPT = """
-Improve and clarify the following research question using the framework.
+PROMPT_3_FRAMEWORK_APPLICATION = """
+Reframe the question '{question}' using the {framework} framework. 
 
-Question:
-{question}
+The framework letters correspond strictly in this order to:
+- PICO: Population, Intervention, Comparison, Outcome
+- PICOC: Population, Intervention, Comparison, Outcome, Context
+- SPIDER: Sample, Phenomenon of Interest, Design, Evaluation, Research type
+- SPICE: Setting, Perspective, Intervention, Comparison, Evaluation
+- PEO: Population, Exposure, Outcome
 
-Framework:
-{framework}
+Provide the framework breakdown as a dictionary where the keys are the exact full words from the framework (e.g., "Population", "Intervention", "Comparison", "Outcome") IN THE EXACT ORDER of the framework acronym. Give specific context from the question for each. Also provide the final reframed question.
 """
 
-FEASIBILITY_PROMPT = """
-Evaluate feasibility of this research question for a short literature review:
-
-{question}
+PROMPT_4_FEASIBILITY = """
+Based on this research question '{question}', estimate the number of relevant publications likely available and the feasibility of reviewing them within a {timeframe} timeframe. Consider the broadness/narrowness of the topic.
 """
 
-ORIGINALITY_PROMPT = """
-Assess whether this research question is already well covered:
+PROMPT_5_ORIGINALITY_SURVEYS = """
+Find and summarize 3–5 recent survey papers on '{topic}'. Identify coverage overlap and potential gaps for a new literature review focused on {topic}.
+"""
 
-{question}
+PROMPT_6_ORIGINALITY_RANKED = """
+Generate 3 research questions about {topic} that are feasible for a literature review within {timeframe} and have not been extensively covered in recent survey papers (considering these gaps: {gaps}). Rank them by novelty and potential impact.
 """
 
 # =========================

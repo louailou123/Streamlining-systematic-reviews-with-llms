@@ -1,20 +1,28 @@
-from typing import TypedDict, List, Dict, Optional
+from typing import TypedDict, List, Dict, Optional, Annotated
+from langgraph.graph.message import add_messages
 
 class LiRAState(TypedDict):
     # =========================
     # SYSTEM INPUT
     # =========================
     topic: str  # initial user input
+    timeframe: str # Review timeframe (e.g. '2 months')
+    messages: Annotated[list, add_messages]  # Chat history / tool messages
 
     # =========================
     # STEP 1 — RESEARCH QUESTION
     # =========================
-    research_questions: List[str]
-    selected_framework: List[str]
-    selected_framework_reason:str
-    final_research_question: Dict[str,str]
-    feasibility_score: int
-    originality_score: int
+    initial_questions: List[str]
+    selected_framework: str
+    framework_justification: str
+    framework_breakdown: Dict[str, str]
+    reframed_question: str
+    feasibility_estimation: str
+    feasibility_status: str
+    survey_summaries: List[Dict[str, str]]
+    overlap: str
+    gaps: str
+    final_ranked_questions: List[Dict[str, str]]
 
     # =========================
     # STEP 2 — SEARCH STRATEGY
@@ -33,11 +41,6 @@ class LiRAState(TypedDict):
     screened_llm_csv: Optional[str]           # optional separate labels file
     screened_human_csv:Optional[str]# after LLM/human screening
     augmented_csv: Optional[str]            # enriched dataset (LLM features)
-
-    # =========================
-    # LLM SCREENING
-    # =========================
-
 
     # =========================
     # STEP 4 — INSIGHTS
