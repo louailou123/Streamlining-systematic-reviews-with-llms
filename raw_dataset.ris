@@ -1,0 +1,412 @@
+TY  - JOUR
+TI  - A Distributed Multi-Agent Deep Reinforcement Learning-Aided Transmission Design for Dynamic Vehicular Communication Networks
+AU  - Nong Qu
+AU  - Chao Wang
+AU  - Zuxing Li
+AU  - Fuqiang Liu
+AU  - Yusheng Ji
+PY  - 2023
+AB  - In a vehicular communication network, how to efficiently utilize the limited network resources to meet the stringent transmission quality of service (QoS) requirements in the dynamically changing environment is a challenging task. This paper studies a typical vehicle-to-vehicle (V2V) communication scenario, in which multiple source nodes desire to deliver different types of messages to their respective destinations. Considering the case that accurate instantaneous global channel state information (CSI) is unavailable, properly selecting access channel, transmission power, and data rate at each source to optimize the links' performance is an extremely involved mixed-integer stochastic optimization problem. We propose applying the distributed multi-agent deep reinforcement learning technique to solve the problem. Specifically, a distributed multi-agent parameterized deep Q-network (DMA-PDQN) algorithm is employed to explore optimal decision in the discrete-continuous hybrid action space. The idea of federated meta learning (FML) is also adopted to tackle the non-stationarity issue and improve the training efficiency of distributed agents. Using energy efficiency (EE) as the target transmission objective, through extensive simulation we show that our method can achieve excellent convergence and performance.
+UR  - https://doi.org/10.1109/tvt.2023.3326877
+DO  - 10.1109/tvt.2023.3326877
+ER  - 
+
+TY  - JOUR
+TI  - DeepCQ+: Robust and Scalable Routing with Multi-Agent Deep Reinforcement Learning for Highly Dynamic Networks
+AU  - Saeed Kaviani
+AU  - Bo Ryu
+AU  - Ejaz Ahmed
+AU  - Kevin A. Larson
+AU  - Le Anh Ngoc
+AU  - et al.
+PY  - 2021
+AB  - Highly dynamic mobile ad-hoc networks (MANETs) remain as one of the most challenging environments to develop and deploy robust, efficient, and scalable routing protocols. In this paper, we present DeepCQ+ routing protocol which, in a novel manner, integrates emerging multi-agent deep reinforcement learning (MADRL) techniques into existing Q-learning-based routing protocols and their variants, and achieves persistently higher performance across a wide range of topology and mobility configurations. While keeping the overall protocol structure of the Q-learning-based routing protocols, DeepCQ+ replaces statically configured parameterized thresholds and hand-written rules with carefully designed MADRL agents such that no configuration of such parameters is required a priori. Extensive simulation shows that DeepCQ+ yields significantly increased end-to-end throughput with lower overhead and no apparent degradation of end-to-end delays (hop counts) compared to its Q-learning-based counterparts. Qualitatively, and perhaps more significantly, DeepCQ+ maintains remarkably similar performance gains under many scenarios that it was not trained for in terms of network sizes, mobility conditions, and traffic dynamics. To the best of our knowledge, this is the first successful application of the MADRL framework for the MANET routing problem that demonstrates a high degree of scalability and robustness even under the environments that are outside the trained range of scenarios. This implies that our MARL-based DeepCQ+ design solution significantly improves the performance of Q-learning-based CQ+ baseline approach for comparison and increases its practicality and explainability because the real-world MANET environment will likely vary outside the trained range of MANET scenarios. Additional techniques to further increase the gains in performance and scalability are discussed.
+UR  - https://doi.org/10.1109/milcom52596.2021.9652948
+DO  - 10.1109/milcom52596.2021.9652948
+ER  - 
+
+TY  - JOUR
+TI  - Multi-agent reinforcement learning for resources allocation optimization: a survey
+AU  - Mohamad Abdul Hady
+AU  - Siyi Hu
+AU  - Mahardhika Pratama
+AU  - Zehong Cao
+AU  - Ryszard Kowalczyk
+PY  - 2025
+AB  - Abstract Multi-Agent Reinforcement Learning (MARL) has become a powerful framework for numerous real-world applications, modeling distributed decision-making and learning from interactions with complex environments. Resource Allocation Optimization (RAO) benefits significantly from MARL’s ability to tackle dynamic and decentralized contexts. MARL-based approaches are increasingly applied to RAO challenges across sectors playing a pivotal role in industry 4.0 developments. This survey provides a comprehensive review of recent MARL algorithms for RAO, encompassing core concepts, classifications, design steps and benchmarks. By outlining the current research landscape and identifying primary challenges and future directions, this survey aims to support researchers and practitioners in leveraging MARL’s potential to advance resource allocation solutions.
+UR  - https://doi.org/10.1007/s10462-025-11340-5
+DO  - 10.1007/s10462-025-11340-5
+ER  - 
+
+TY  - JOUR
+TI  - Distributed Optimization for Distribution Grids With Stochastic DER Using Multi-Agent Deep Reinforcement Learning
+AU  - Mohammed Al-Saffar
+AU  - Petr Musı́lek
+PY  - 2021
+AB  - This article develops a special decomposition methodology for the traditional optimal power flow which facilitates optimal integration of stochastic distributed energy resources in power distribution systems. The resulting distributed optimal power flow algorithm reduces the computational complexity of the conventional linear programming approach while avoiding the challenges associated with the stochastic nature of the energy resources and loads. It does so using machine learning algorithms employed for two crucial tasks. First, two proposed algorithms, Dynamic Distributed Multi-Microgrid and Monte Carlo Tree Search based Reinforcement Learning, constitute dynamic microgrids of network nodes to confirm the electric power transaction optimality. Second, the optimal distributed energy resources are obtained by the proposed deep reinforcement learning method named Multi Leader-Follower Actors under Centralized Critic. It accelerates conventional linear programming approach by considering a reduced set of resources and their constraints. The proposed method is demonstrated through a real-time balancing electricity market constructed over the IEEE 123-bus system and enhanced using price signals based on distribution locational marginal prices. This application clearly shows the ability of the new approach to effectively coordinate multiple distribution system entities while maintaining system security constraints.
+UR  - https://doi.org/10.1109/access.2021.3075247
+DO  - 10.1109/access.2021.3075247
+ER  - 
+
+TY  - JOUR
+TI  - Multi-Agent Reinforcement Learning for Dynamic Topology Optimization of Mesh Wireless Networks
+AU  - Wei Sun
+AU  - Qiushuo Lv
+AU  - Yang Xiao
+AU  - Zhi Liu
+AU  - Qingwei Tang
+AU  - et al.
+PY  - 2024
+AB  - In Mesh Wireless Networks (MWNs), the network coverage is extended by connecting Access Points (APs) in a mesh topology, where transmitting frames by multi-hop routing has to sustain the performances, such as end-to-end (E2E) delay and channel efficiency. Several recent studies have focused on minimizing E2E delay, but these methods are unable to adapt to the dynamic nature of MWNs. Meanwhile, reinforcement-learning-based methods offer better adaptability to dynamics but suffer from the problem of high-dimensional action spaces, leading to slower convergence. In this paper, we propose a multi-agent actor-critic reinforcement learning (MACRL) algorithm to optimize multiple objectives, specifically the minimization of E2E delay and the enhancement of channel efficiency. First, to reduce the action space and speed up the convergence in the dynamical optimization process, a centralized-critic-distributed-actor scheme is proposed. Then, a multi-objective reward balancing method is designed to dynamically balance the MWNs’ performances between the E2E delay and the channel efficiency. Finally, the trained MACRL algorithm is deployed in the QaulNet simulator to verify its effectiveness.
+UR  - https://doi.org/10.1109/twc.2024.3372694
+DO  - 10.1109/twc.2024.3372694
+ER  - 
+
+TY  - JOUR
+TI  - Multi-Agent Deep Reinforcement Learning Based Resource Allocation for Ultra-Reliable Low-Latency Internet of Controllable Things
+AU  - Yang Xiao
+AU  - Yuqian Song
+AU  - Jun Liu
+PY  - 2023
+AB  - As a promising technology in the 5G era, the artificial intelligence (AI) enabled Internet of controllable things (IoCT) is expected to be an integral part of heterogeneous networks (HetNets) in the future. However, the realization of ultra-reliable low-latency communications (URLLC) in IoCT communications underlaid HetNet has stringent quality of service (QoS) requirements, resulting in unprecedented challenges for existing wireless resource allocation methods. In this paper, we first describe a cellular HetNet model with uplink IoCT communications, then formulate a dynamic mixed-integer nonlinear programming (MINLP) resource allocation problem for maximizing the long-term average energy efficiency under URLLC requirements including reliability, latency, and transmission rate. To solve the problem, we propose a decentralized MADRL-based resource allocation algorithm with a decentralized partially observable Markov decision process (dec-POMDP) and a mixed-centralized-decentralized (MCD) framework to address the partial observability and the scalability issues, respectively. In addition, we design a reward function featuring the objective decomposition, baseline-guided scaling, and QoS violation penalty so that the agents are coordinated. Extensive experiments demonstrate the convergence, scalability, and robustness of the proposed algorithm. Besides, the proposed algorithm substantially outperforms conventional resource allocation methods and different agent communication mechanisms in terms of maximizing energy efficiency.
+UR  - https://doi.org/10.1109/twc.2022.3233853
+DO  - 10.1109/twc.2022.3233853
+ER  - 
+
+TY  - JOUR
+TI  - Scalable Multi-Agent Reinforcement Learning for Dynamic Coordinated Multipoint Clustering
+AU  - Fenghe Hu
+AU  - Yansha Deng
+AU  - A.H. Aghvami
+PY  - 2022
+AB  - Reinforcement learning (RL) is a widely investigated intelligent algorithm and proved to be useful in the wireless communication area. However, for optimization problems in large-scale multi-cell networks whose dimension increases exponentially, it is unrealistic to employ a conventional centralized RL algorithm and make decisions for the entire network. Multi-agent RL, which allows distribute decision-making, is expected to solve the scalability problem but with performance issues due to the unknown global information, i.e., non-stationary environment. In this paper, we propose a parameter-sharing multi-agent RL for grouping decisions of coordinated multi-point in a large-scale network, where agents jointly serve users to enhance the cell-edge service. By sharing information via parameters, our theoretical and simulation results show that parameter sharing can largely benefit the multi-agent algorithm with convergence proof and convergence speed analysis. To reduce the effect of biased local heterogeneous experience, we also propose a transfer learning method for the parameter sharing process, whose performance of transfer learning algorithms is verified by the simulation results.
+UR  - https://doi.org/10.1109/tcomm.2022.3220870
+DO  - 10.1109/tcomm.2022.3220870
+ER  - 
+
+TY  - JOUR
+TI  - Distributed Task Migration Optimization in MEC by Extending Multi-Agent Deep Reinforcement Learning Approach
+AU  - Chubo Liu
+AU  - Fan Tang
+AU  - Yikun Hu
+AU  - Kenli Li
+AU  - Zhuo Tang
+AU  - et al.
+PY  - 2020
+AB  - Closer to mobile users geographically, mobile edge computing (MEC) can provide some cloud-like capabilities to users more efficiently. This enables it possible for resource-limited mobile users to offload their computation-intensive and latency-sensitive tasks to MEC nodes. For its great benefits, MEC has drawn wide attention and extensive works have been done. However, few of them address task migration problem caused by distributed user mobility, which can't be ignored with quality of service (QoS) consideration. In this article, we study task migration problem and try to minimize the average completion time of tasks under migration energy budget. There are multiple independent users and the movement of each mobile user is memoryless with a sequential decision-making process, thus reinforcement learning algorithm based on Markov chain model is applied with low computation complexity. To further facilitate cooperation among users, we devise a distributed task migration algorithm based on counterfactual multi-agent (COMA) reinforcement learning approach to solve this problem. Extensive experiments are carried out to assess the performance of this distributed task migration algorithm. Compared with no migrating (NM) and single-agent actor-critic (AC) algorithms, the proposed distributed task migration algorithm can achieve up 30-50 percent reduction about average completion time.
+UR  - https://doi.org/10.1109/tpds.2020.3046737
+DO  - 10.1109/tpds.2020.3046737
+ER  - 
+
+TY  - JOUR
+TI  - Distributed UAV-BSs Trajectory Optimization for User-Level Fair Communication Service With Multi-Agent Deep Reinforcement Learning
+AU  - Zhenquan Qin
+AU  - Zhonghao Liu
+AU  - Guangjie Han
+AU  - Chuan Lin
+AU  - Linlin Guo
+AU  - et al.
+PY  - 2021
+AB  - Unmanned Aerial Vehicles (UAVs) have attacted much attention in the field of wireless communication due to its agility and altitude. UAVs can be used as low-altitude aerial base stations (UAV-BSs) to provide communication services for ground devices (GDs) in various scenarios, such as emergency communication and traffic offloading in hotspots. However, due to the limited communication ranges and high prices of commercial UAV-BSs, covering a target area all the time with sufficient UAVs is quite challenging, especially under dynamic environment. We need to design the trajectory of the UAV-BSs to optimize system performance. Most existing works focus on the energy-efficient coverage and throughput maximization but ignore the fairness of communication service, especially the fairness at user-level. Besides, reinforcement learning is suitable for solving decision problems in dynamic environments. However, most existing works use centralized deep reinforcement learning (DRL) approaches. Due to the scalability and low time complexity, a distributed DRL approach is more suitable for multiple UAV-BSs communication system in dynamic environment. Unlike previous works, we characterize the fairness at user-level based on proportional fairness scheduling and formulate a weighted-throughput maximization problem via designing UAV-BSs’ trajectory. Then we model the dynamic deploymentproblem of UAV-BSs as a Markov game and propose a multi-agent deep reinforcement learning-based distributed UAV-BSs control approach named MAUC. MAUC approach adopts the framework of centralized training with distributed execution. Simulation results show that the MAUC can improve fairness of communication service by sacrificing a small amount of throughput.
+UR  - https://doi.org/10.1109/tvt.2021.3117792
+DO  - 10.1109/tvt.2021.3117792
+ER  - 
+
+TY  - JOUR
+TI  - Cooperative Multi-Agent Reinforcement-Learning-Based Distributed Dynamic Spectrum Access in Cognitive Radio Networks
+AU  - Xiang Tan
+AU  - Li Zhou
+AU  - Haijun Wang
+AU  - Yuli Sun
+AU  - Haitao Zhao
+AU  - et al.
+PY  - 2022
+AB  - With the development of wireless communication and Internet of Things (IoT), there are massive wireless devices that need to share the limited spectrum resources. Dynamic spectrum access (DSA) is a promising paradigm to remedy the problem of inefficient spectrum utilization brought upon by the historical command-and-control approach to spectrum allocation. In this article, we investigate the distributed DSA problem for multiusers in a typical multichannel cognitive radio network. The problem is formulated as a decentralized partially observable Markov decision process (Dec-POMDP), and we propose a centralized off-line training and distributed online execution framework based on cooperative multi-agent reinforcement learning (MARL). We employ the deep recurrent <inline-formula xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink"> <tex-math notation="LaTeX">$Q$ </tex-math></inline-formula> -network (DRQN) to address the partial observability of the state for each cognitive user. The ultimate goal is to learn a cooperative strategy which maximizes the sum throughput of a cognitive radio network in a distributed fashion without information exchange between cognitive users. Finally, we validate the proposed algorithm in various settings through extensive experiments. The experimental results show that the proposed CoMARL-DSA algorithm outperforms the state-of-the-art deep <inline-formula xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink"> <tex-math notation="LaTeX">$Q$ </tex-math></inline-formula> -learning for spectrum access (DQSA) in terms of successful access rate and collision rate by at least 14% and 12%, respectively.
+UR  - https://doi.org/10.1109/jiot.2022.3168296
+DO  - 10.1109/jiot.2022.3168296
+ER  - 
+
+TY  - JOUR
+TI  - Multi-Agent Deep Reinforcement Learning for Dynamic Power Allocation in Wireless Networks
+AU  - Yasar Sinan Nasir
+AU  - Dongning Guo
+PY  - 2019
+AB  - This work demonstrates the potential of deep reinforcement learning techniques for transmit power control in wireless networks. Existing techniques typically find near-optimal power allocations by solving a challenging optimization problem. Most of these algorithms are not scalable to large networks in real-world scenarios because of their computational complexity and instantaneous cross-cell channel state information (CSI) requirement. In this paper, a distributively executed dynamic power allocation scheme is developed based on model-free deep reinforcement learning. Each transmitter collects CSI and quality of service (QoS) information from several neighbors and adapts its own transmit power accordingly. The objective is to maximize a weighted sum-rate utility function, which can be particularized to achieve maximum sum-rate or proportionally fair scheduling. Both random variations and delays in the CSI are inherently addressed using deep Q-learning. For a typical network architecture, the proposed algorithm is shown to achieve near-optimal power allocation in real time based on delayed CSI measurements available to the agents. The proposed scheme is especially suitable for practical scenarios where the system model is inaccurate and CSI delay is non-negligible.
+UR  - https://doi.org/10.1109/jsac.2019.2933973
+DO  - 10.1109/jsac.2019.2933973
+ER  - 
+
+TY  - JOUR
+TI  - Distributed Power Control for Large Energy Harvesting Networks: A Multi-Agent Deep Reinforcement Learning Approach
+AU  - Mohit Kumar Sharma
+AU  - Alessio Zappone
+AU  - Mohamad Assaad
+AU  - Mérouane Debbah
+AU  - Spyridon Vassilaras
+PY  - 2019
+AB  - In this paper, we develop a multi-agent reinforcement learning (MARL) framework to obtain online power control policies for a large energy harvesting (EH) multiple access channel, when only causal information about the EH process and wireless channel is available. In the proposed framework, we model the online power control problem as a discrete-time mean-field game (MFG), and analytically show that the MFG has a unique stationary solution. Next, we leverage the fictitious play property of the mean-field games, and the deep reinforcement learning technique to learn the stationary solution of the game, in a completely distributed fashion. We analytically show that the proposed procedure converges to the unique stationary solution of the MFG. This, in turn, ensures that the optimal policies can be learned in a completely distributed fashion. In order to benchmark the performance of the distributed policies, we also develop a deep neural network (DNN) based centralized as well as distributed online power control schemes. Our simulation results show the efficacy of the proposed power control policies. In particular, the DNN based centralized power control policies provide a very good performance for large EH networks for which the design of optimal policies is intractable using the conventional methods such as Markov decision processes. Further, performance of both the distributed policies is close to the throughput achieved by the centralized policies.
+UR  - https://doi.org/10.1109/tccn.2019.2949589
+DO  - 10.1109/tccn.2019.2949589
+ER  - 
+
+TY  - JOUR
+TI  - Multi-Agent Deep Reinforcement Learning for Distributed Resource Management in Wirelessly Powered Communication Networks
+AU  - Sangwon Hwang
+AU  - Hanjin Kim
+AU  - Hoon Lee
+AU  - Inkyu Lee
+PY  - 2020
+AB  - This paper studies multi-agent deep reinforcement learning (MADRL) based resource allocation methods for multi-cell wireless powered communication networks (WPCNs) where multiple hybrid access points (H-APs) wirelessly charge energy-limited users to collect data from them. We design a distributed reinforcement learning strategy where H-APs individually determine time and power allocation variables. Unlike traditional centralized optimization algorithms which require global information collected at a central unit, the proposed MADRL technique models an H-AP as an agent producing its action based only on its own locally observable states. Numerical results verify that the proposed approach can achieve comparable performance of the centralized algorithms.
+UR  - https://doi.org/10.1109/tvt.2020.3029609
+DO  - 10.1109/tvt.2020.3029609
+ER  - 
+
+TY  - JOUR
+TI  - Federated Multi-Agent Deep Reinforcement Learning for Resource Allocation of Vehicle-to-Vehicle Communications
+AU  - Xiang Li
+AU  - Lingyun Lu
+AU  - Wei Ni
+AU  - Abbas Jamalipour
+AU  - Dalin Zhang
+AU  - et al.
+PY  - 2022
+AB  - Dynamic topology, fast-changing channels and the time sensitivity of safety-related services present challenges to the status quo of resource allocation for cellular-underlaying vehicle-to-vehicle (V2V) communications. In this paper, we investigate a novel federated multi-agent deep reinforcement learning (FedMARL) approach for the decentralized joint optimization of channel selection and power control for V2V communication. The approach takes advantage of both deep reinforcement learning (DRL) and federated learning (FL), satisfying the reliability and delay requirements of V2V communication while maximizing the transmit rates of cellular links. Specifically, we elaborately construct individual V2V agent implement by the dueling double deep Q-network (D3QN), and design the reward function to train V2V agents collaboratively. As a result, each agent individually optimizes channel selection and power level based on its local observations, including the instantaneous channel state information (CSI) of corresponding V2V link, the instantaneous co-channel interference from the cellular link, the previous channels selections of nearby V2V pairs, and the queue backlog at the V2V transmitter. Another important aspect is that we incorporate FL to alleviate the training instability problem induced by cooperative multi-agent environment. The local DRL models of different V2V agents are federated periodically, addressing the limitations of partial observability on the entire network status for individual agent, and accelerating the training process of multi-agent learning. Validated via simulations, the proposed FedMARL scheme shows superiority to the baselines in terms of the cellular sum-rate and the V2V packet delivery rate.
+UR  - https://doi.org/10.1109/tvt.2022.3173057
+DO  - 10.1109/tvt.2022.3173057
+ER  - 
+
+TY  - JOUR
+TI  - Multi-Agent Deep Reinforcement Learning-Based Distributed Optimal Generation Control of DC Microgrids
+AU  - Zhen Fan
+AU  - Wei Zhang
+AU  - Wenxin Liu
+PY  - 2023
+AB  - Optimal generation allocation is customarily applied to the DC microgrids to enable optimal operation. Conventionally, the optimization is implemented periodically to obtain the optimal bus voltage or output power references for given operating conditions, which will unavoidably deviate from the actual ones. Since slight disturbances such as load changes will trigger real-time control adjustments, hence, the overall cost will increase due to the disconnect between optimization and real-time control. To overcome this issue, it is preferable to directly apply the optimal control method to render an optimal time path of control actions in real-time. This paper has studied the optimal generation control problem as a constrained non-convex problem with non-linearity. DRL has been successfully applied to solve such problems without mathematically modeling the actual system; the links between states and actions are discovered via ongoing environmental interactions, decreasing the reliance on system parameter information. This paper also showed that TD3-based optimal control could be applied to DC microgrids using a monotonical policy gradient search approach. Furthermore, DRL’s distributed training and execution framework is designed to realize real-time distributed control. The data sampling, storage, and experience buffer initialization strategy are customized to improve learning efficiency. The case study demonstrated its effectiveness.
+UR  - https://doi.org/10.1109/tsg.2023.3237200
+DO  - 10.1109/tsg.2023.3237200
+ER  - 
+
+TY  - JOUR
+TI  - A Collaborative Multi-Agent Deep Reinforcement Learning-Based Wireless Power Allocation With Centralized Training and Decentralized Execution
+AU  - Amna Kopic
+AU  - Erma Perenda
+AU  - Haris Gacanin
+PY  - 2024
+AB  - Despite the success of Deep Reinforcement Learning (DRL) in radio-resource management within multi-cell wireless networks, applying it to power allocation in ultra-dense 5G and beyond networks poses challenges. While existing multi-agent DRL-based methods often adopt a fully centralized approach, they often overlook communication overhead costs. In this paper, we model a multi-cell network as a collaborative multi-agent DRL system, implementing a centralized training-decentralized execution approach for accurate and real-time decision-making, thereby eliminating communication overhead during execution. We carefully design the DRL agents’ input observations, actions, and rewards to address potential impractical power allocation policies in multi-carrier systems and ensure strict compliance with transmit power constraints. Through extensive simulations, we assess the sensitivity of the proposed DRL-based power allocation to various exploration methods and system parameters. Results indicate superior performance of DRL-based power allocation with continuous action space in complex network environments. Conversely, simpler network settings with fewer subcarriers and users require fewer power allocation actions, ensuring rapid convergence. By leveraging a fast exploration rate, DRL-based power allocation with discrete action space outperforms conventional algorithms, achieving a 36% relative sum rate increase within 60,000 training episodes.
+UR  - https://doi.org/10.1109/tcomm.2024.3409530
+DO  - 10.1109/tcomm.2024.3409530
+ER  - 
+
+TY  - JOUR
+TI  - Trajectory Optimization and Power Allocation for Multi-UAV Wireless Networks: A Communication-Based Multi-Agent Deep Reinforcement Learning Approach
+AU  - Zimeng Yuan
+AU  - Yuanguo Bi
+AU  - Yanbo Fan
+AU  - Yuheng Liu
+AU  - Lianbo Ma
+AU  - et al.
+PY  - 2025
+AB  - Unmanned Aerial Vehicles (UAVs) play a crucial role in next-generation mobile communication systems, serving as aerial base stations to provide services when ground base stations fail to meet coverage requirements. However, trajectory planning and power allocation for collaborative UAVs as Aerial Base Stations (UAV-ABSs) face several challenges, including energy limitations, flight time constraints, high optimization complexity due to dynamic environment interactions, and insufficient decision-making information. To address these challenges, this paper proposes a multi-agent reinforcement learning algorithm, namely Communication Actor Centralized Attention Critic Algorithm (CATEN), to jointly optimize the flight trajectory and power allocation strategies of UAV-ABSs. The proposed algorithm aims to maximize the number of users meeting Quality of Service (QoS) requirements while minimizing UAV-ABSs energy consumption. To achieve this, firstly, an information sharing mechanism is designed to improve the collaboration efficiency among UAV-ABSs. It leverages distributed storage, intelligent scheduling of UAV-ABSs interaction experiences, and gating units to enhance information screening and fusion. Secondly, a multihead attention critic network is proposed to capture correlations among UAV-ABSs from different subspaces. This allows the network to prioritize value information, reduce redundancy, and strengthen UAV-ABSs collaboration and decision-making capabilities. Simulation results demonstrate that CATEN achieves better performance in terms of the number of served users and energy consumption compared to existing algorithms, exhibiting good robustness and adaptability in dynamic environments.
+UR  - https://doi.org/10.1109/tc.2025.3587976
+DO  - 10.1109/tc.2025.3587976
+ER  - 
+
+TY  - JOUR
+TI  - Request delay and survivability optimization for software defined‐wide area networking (SD‐WAN) using multi‐agent deep reinforcement learning
+AU  - Mohamed Amine Ouamri
+AU  - Mohamed Azni
+AU  - Daljeet Singh
+AU  - Waleed Almughalles
+AU  - Mohammed Saleh Ali Muthanna
+PY  - 2023
+AB  - Abstract Data exchange between headquarters and local branches represents a major challenge issue for business success. For this issue, traditional solutions applied to wide area networks (WAN) remain unrealistic and require a good knowledge of the systems. Recently, software‐defined wide area networking (SD‐WAN) plays a pivotal role and constitutes, in general, a reliable solution for wide area networking. Compared to the classical WAN, SD‐WAN decouples the control plane from gateway devices. Moreover, SD‐WAN are based on centralized WAN management with dynamic reconfiguration, allowing it to control the entire service requirements. Nevertheless, traffic management is the most usual metric in SD‐WAN. It gives a clear indication on propagation latency, request delay and survivability; that is, network connectivity. In this article, to guarantee an efficient quality of service and deal with the increased delay problem, we investigate the problem of joint optimization of average request delay and survivability in the proposed SD‐WAN model. The optimization approaches are formulated so as to minimize the average request delay and maximize the network connectivity. Subsequently, we adopt a multi‐agent deep Q‐Network algorithm to solve it, where the reward function is reformulated based on the optimization objective. Simulation results show that our strategy improves the system's performance significantly in terms of request delay and survivability, compared to traditional baseline algorithms.
+UR  - https://doi.org/10.1002/ett.4776
+DO  - 10.1002/ett.4776
+ER  - 
+
+TY  - JOUR
+TI  - Multi-Agent Deep Reinforcement Learning to Enable Dynamic TDD in a Multi-Cell Environment
+AU  - Karim Boutiba
+AU  - Miloud Bagaa
+AU  - Adlen Ksentini
+PY  - 2023
+AB  - Dynamic Time Division Duplex (D-TDD) is a promising solution to address newly emerging 5G and 6G services characterized by asymmetric and dynamic uplink (UL) and downlink (DL) traffic demands. However, there are two major issues: (i) determining the TDD scheme (i.e., the number of slots devoted to UL and DL) to meet the dynamic traffic demands of the Users Equipment (UE); (ii) cross-link interference between cells that use different TDD schemes. The 3GPP standard neither specifies algorithms or solutions to derive the TDD configuration nor solves the cross-link interference. To fill this gap, we model the dynamic TDD problem in 5G NR as a linear programming problem. Then, we design Multi-Agent Deep Reinforcement Learning based 5G RAN TDD Pattern (MADRP), a fully decentralized solution based on the Multi-Agent Deep Reinforcement Learning (MADRL) approach. Based on the simulation results, the algorithm effectively prevents buffer overflows, avoids cross-link interference, and adapts to changes in the traffic pattern, ensuring its versatility. We compared our solution with the optimal solution and different static TDD configurations. We found that MADRP outperforms the static TDD configurations. We finally discuss the algorithm's limitations in terms of the number of cells, traffic variance, and cross-link interference probability.
+UR  - https://doi.org/10.1109/tmc.2023.3315961
+DO  - 10.1109/tmc.2023.3315961
+ER  - 
+
+TY  - JOUR
+TI  - Interference-Aware K-Step Reachable Communication in Multi-Agent Reinforcement Learning (2026)
+AU  - Ziyu Cheng
+AU  - Jinsheng Ren
+AU  - Zhouxian Jiang
+AU  - Chenzhihang Li
+AU  - Rongye Shi
+AU  - Bin Liang
+AU  - Jun Yang
+PY  - 2026
+AB  - Effective communication is pivotal for addressing complex collaborative tasks in multi-agent reinforcement learning (MARL). Yet, limited communication bandwidth and dynamic, intricate environmental topologies present significant challenges in identifying high-value communication partners. Agents must consequently select collaborators under uncertainty, lacking a priori knowledge of which partners can deliver task-critical information. To this end, we propose Interference-Aware K-Step Reachable Communication (IA-KRC), a novel framework that enhances cooperation via two core components: (1) a K-Step reachability protocol that confines message passing to physically accessible neighbors, and (2) an interference-prediction module that optimizes partner choice by minimizing interference while maximizing utility. Compared to existing methods, IA-KRC enables substantially more persistent and efficient cooperation despite environmental interference. Comprehensive evaluations confirm that IA-KRC achieves superior performance compared to state-of-the-art baselines, while demonstrating enhanced robustness and scalability in complex topological and highly dynamic multi-agent scenarios.
+UR  - http://arxiv.org/abs/2603.15054v1
+DO  - 10.48550/arxiv.2603.15054
+ER  - 
+
+TY  - JOUR
+TI  - A Survey of Multi-Agent Deep Reinforcement Learning with Communication (2022)
+AU  - Changxi Zhu
+AU  - Mehdi Dastani
+AU  - Shihan Wang
+PY  - 2022
+AB  - Abstract Communication is an effective mechanism for coordinating the behaviors of multiple agents, broadening their views of the environment, and to support their collaborations. In the field of multi-agent deep reinforcement learning (MADRL), agents can improve the overall learning performance and achieve their objectives by communication. Agents can communicate various types of messages, either to all agents or to specific agent groups, or conditioned on specific constraints. With the growing body of research work in MADRL with communication (Comm-MADRL), there is a lack of a systematic and structural approach to distinguish and classify existing Comm-MADRL approaches. In this paper, we survey recent works in the Comm-MADRL field and consider various aspects of communication that can play a role in designing and developing multi-agent reinforcement learning systems. With these aspects in mind, we propose 9 dimensions along which Comm-MADRL approaches can be analyzed, developed, and compared. By projecting existing works into the multi-dimensional space, we discover interesting trends. We also propose some novel directions for designing future Comm-MADRL systems through exploring possible combinations of the dimensions.
+UR  - http://arxiv.org/abs/2203.08975v2
+DO  - 10.1007/s10458-023-09633-6
+ER  - 
+
+TY  - JOUR
+TI  - ACCNet: Actor-Coordinator-Critic Net for "Learning-to-Communicate" with Deep Multi-agent Reinforcement Learning (2017)
+AU  - Hangyu Mao
+AU  - Zhibo Gong
+AU  - Yan Ni
+AU  - Zhen Xiao
+PY  - 2017
+AB  - Communication is a critical factor for the big multi-agent world to stay organized and productive. Typically, most previous multi-agent "learning-to-communicate" studies try to predefine the communication protocols or use technologies such as tabular reinforcement learning and evolutionary algorithm, which can not generalize to changing environment or large collection of agents. In this paper, we propose an Actor-Coordinator-Critic Net (ACCNet) framework for solving "learning-to-communicate" problem. The ACCNet naturally combines the powerful actor-critic reinforcement learning technology with deep learning technology. It can efficiently learn the communication protocols even from scratch under partially observable environment. We demonstrate that the ACCNet can achieve better results than several baselines under both continuous and discrete action space environments. We also analyse the learned protocols and discuss some design considerations.
+UR  - http://arxiv.org/abs/1706.03235v3
+DO  - 10.48550/arxiv.1706.03235
+ER  - 
+
+TY  - JOUR
+TI  - Multi-agent Deep Reinforcement Learning with Extremely Noisy Observations (2018)
+AU  - Ozsel Kilinc
+AU  - Giovanni Montana
+PY  - 2018
+AB  - Multi-agent reinforcement learning systems aim to provide interacting agents with the ability to collaboratively learn and adapt to the behaviour of other agents. In many real-world applications, the agents can only acquire a partial view of the world. Here we consider a setting whereby most agents' observations are also extremely noisy, hence only weakly correlated to the true state of the environment. Under these circumstances, learning an optimal policy becomes particularly challenging, even in the unrealistic case that an agent's policy can be made conditional upon all other agents' observations. To overcome these difficulties, we propose a multi-agent deep deterministic policy gradient algorithm enhanced by a communication medium (MADDPG-M), which implements a two-level, concurrent learning mechanism. An agent's policy depends on its own private observations as well as those explicitly shared by others through a communication medium. At any given point in time, an agent must decide whether its private observations are sufficiently informative to be shared with others. However, our environments provide no explicit feedback informing an agent whether a communication action is beneficial, rather the communication policies must also be learned through experience concurrently to the main policies. Our experimental results demonstrate that the algorithm performs well in six highly non-stationary environments of progressively higher complexity, and offers substantial performance gains compared to the baselines.
+UR  - http://arxiv.org/abs/1812.00922v1
+DO  - 10.48550/arxiv.1812.00922
+ER  - 
+
+TY  - JOUR
+TI  - Variational Policy Propagation for Multi-agent Reinforcement Learning (2020)
+AU  - Chao Qu
+AU  - Hui Li
+AU  - Chang Liu
+AU  - Junwu Xiong
+AU  - James Zhang
+AU  - Wei Chu
+AU  - Weiqiang Wang
+AU  - Yuan Qi
+AU  - Le Song
+PY  - 2020
+AB  - We propose a \emph{collaborative} multi-agent reinforcement learning algorithm named variational policy propagation (VPP) to learn a \emph{joint} policy through the interactions over agents. We prove that the joint policy is a Markov Random Field under some mild conditions, which in turn reduces the policy space effectively. We integrate the variational inference as special differentiable layers in policy such that the actions can be efficiently sampled from the Markov Random Field and the overall policy is differentiable. We evaluate our algorithm on several large scale challenging tasks and demonstrate that it outperforms previous state-of-the-arts.
+UR  - http://arxiv.org/abs/2004.08883v4
+DO  - 10.48550/arxiv.2004.08883
+ER  - 
+
+TY  - JOUR
+TI  - Learning Bilateral Team Formation in Cooperative Multi-Agent Reinforcement Learning (2025)
+AU  - Koorosh Moslemi
+AU  - Chi-Guhn Lee
+PY  - 2025
+AB  - Team formation and the dynamics of team-based learning have drawn significant interest in the context of Multi-Agent Reinforcement Learning (MARL). However, existing studies primarily focus on unilateral groupings, predefined teams, or fixed-population settings, leaving the effects of algorithmic bilateral grouping choices in dynamic populations underexplored. To address this gap, we introduce a framework for learning two-sided team formation in dynamic multi-agent systems. Through this study, we gain insight into what algorithmic properties in bilateral team formation influence policy performance and generalization. We validate our approach using widely adopted multi-agent scenarios, demonstrating competitive performance and improved generalization in most scenarios.
+UR  - http://arxiv.org/abs/2506.20039v1
+DO  - 10.48550/arxiv.2506.20039
+ER  - 
+
+TY  - JOUR
+TI  - AOAD-MAT: Transformer-based multi-agent deep reinforcement learning model considering agents' order of action decisions (2025)
+AU  - Shota Takayama
+AU  - Katsuhide Fujita
+PY  - 2025
+AB  - Multi-agent reinforcement learning focuses on training the behaviors of multiple learning agents that coexist in a shared environment. Recently, MARL models, such as the Multi-Agent Transformer (MAT) and ACtion dEpendent deep Q-learning (ACE), have significantly improved performance by leveraging sequential decision-making processes. Although these models can enhance performance, they do not explicitly consider the importance of the order in which agents make decisions. In this paper, we propose an Agent Order of Action Decisions-MAT (AOAD-MAT), a novel MAT model that considers the order in which agents make decisions. The proposed model explicitly incorporates the sequence of action decisions into the learning process, allowing the model to learn and predict the optimal order of agent actions. The AOAD-MAT model leverages a Transformer-based actor-critic architecture that dynamically adjusts the sequence of agent actions. To achieve this, we introduce a novel MARL architecture that cooperates with a subtask focused on predicting the next agent to act, integrated into a Proximal Policy Optimization based loss function to synergistically maximize the advantage of the sequential decision-making. The proposed method was validated through extensive experiments on the StarCraft Multi-Agent Challenge and Multi-Agent MuJoCo benchmarks. The experimental results show that the proposed AOAD-MAT model outperforms existing MAT and other baseline models, demonstrating the effectiveness of adjusting the AOAD order in MARL.
+UR  - http://arxiv.org/abs/2510.13343v1
+DO  - 10.1007/978-3-032-13562-9_23
+ER  - 
+
+TY  - JOUR
+TI  - Cooperative Edge Caching Based on Elastic Federated and Multi-Agent Deep Reinforcement Learning in Next-Generation Network (2024)
+AU  - Qiong Wu
+AU  - Wenhua Wang
+AU  - Pingyi Fan
+AU  - Qiang Fan
+AU  - Huiling Zhu
+AU  - Khaled B. Letaief
+PY  - 2024
+AB  - Edge caching is a promising solution for next-generation networks by empowering caching units in small-cell base stations (SBSs), which allows user equipments (UEs) to fetch users’ requested contents that have been pre-cached in SBSs. It is crucial for SBSs to predict accurate popular contents through learning while protecting users’ personal information. Traditional federated learning (FL) can protect users’ privacy but the data discrepancies among UEs can lead to a degradation in model quality. Therefore, it is necessary to train personalized local models for each UE to predict popular contents accurately. In addition, the cached contents can be shared among adjacent SBSs in next-generation networks, thus caching predicted popular contents in different SBSs may affect the cost to fetch contents. Hence, it is critical to determine where the popular contents are cached cooperatively. To address these issues, we propose a cooperative edge caching scheme based on elastic federated and multi-agent deep reinforcement learning (CEFMR) to optimize the cost in the network. We first propose an elastic FL algorithm to train the personalized model for each UE, where adversarial autoencoder (AAE) model is adopted for training to improve the prediction accuracy, then a popular content prediction algorithm is proposed to predict the popular contents for each SBS based on the trained AAE model. Finally, we propose a multi-agent deep reinforcement learning (MADRL) based algorithm to decide where the predicted popular contents are collaboratively cached among SBSs. Our experimental results demonstrate the superiority of our proposed scheme to existing baseline caching schemes.
+UR  - http://arxiv.org/abs/2401.09886v2
+DO  - 10.1109/tnsm.2024.3403842
+ER  - 
+
+TY  - JOUR
+TI  - Dynamic Channel Access and Power Control in Wireless Interference Networks via Multi-Agent Deep Reinforcement Learning (2021)
+AU  - Ziyang Lu
+AU  - Chen Zhong
+AU  - M. Cenk Gursoy
+PY  - 2021
+AB  - Due to the scarcity in the wireless spectrum and limited energy resources especially in mobile applications, efficient resource allocation strategies are critical in wireless networks. Motivated by the recent advances in deep reinforcement learning (DRL), we address multi-agent DRL-based joint dynamic channel access and power control in a wireless interference network. We first propose a multi-agent DRL algorithm with centralized training (DRL-CT) to tackle the joint resource allocation problem. In this case, the training is performed at the central unit (CU) and after training, the users make autonomous decisions on their transmission strategies with only local information. We demonstrate that with limited information exchange and faster convergence, DRL-CT algorithm can achieve 90% of the performance achieved by the combination of weighted minimum mean square error (WMMSE) algorithm for power control and exhaustive search for dynamic channel access. In the second part of this paper, we consider distributed multi-agent DRL scenario in which each user conducts its own training and makes its decisions individually, acting as a DRL agent. Finally, as a compromise between centralized and fully distributed scenarios, we consider federated DRL (FDRL) to approach the performance of DRL-CT with the use of a central unit in training while limiting the information exchange and preserving privacy of the users in the wireless system. Via simulation results, we show that proposed learning frameworks lead to efficient adaptive channel access and power control policies in dynamic environments.
+UR  - https://doi.org/10.1109/tvt.2021.3131534
+DO  - 10.1109/tvt.2021.3131534
+ER  - 
+
+TY  - JOUR
+TI  - Dynamic Electronic Toll Collection via Multi-Agent Deep Reinforcement Learning with Edge-Based Graph Convolutional Networks (2019)
+AU  - Wei Qiu
+AU  - Haipeng Chen
+AU  - Bo An
+PY  - 2019
+AB  - Over the past decades, Electronic Toll Collection (ETC) systems have been proved the capability of alleviating traffic congestion in urban areas. Dynamic Electronic Toll Collection (DETC) was recently proposed to further improve the efficiency of ETC, where tolls are dynamically set based on traffic dynamics. However, computing the optimal DETC scheme is computationally difficult and existing approaches are limited to small scale or partial road networks, which significantly restricts the adoption of DETC. To this end, we propose a novel multi-agent reinforcement learning (RL) approach for DETC. We make several key contributions: i) an enhancement over the state-of-the-art RL-based method with a deep neural network representation of the policy and value functions and a temporal difference learning framework to accelerate the update of target values, ii) a novel edge-based graph convolutional neural network (eGCN) to extract the spatio-temporal correlations of the road network state features, iii) a novel cooperative multi-agent reinforcement learning (MARL) which divides the whole road network into partitions according to their geographic and economic characteristics and trains a tolling agent for each partition. Experimental results show that our approach can scale up to realistic-sized problems with robust performance and significantly outperform the state-of-the-art method.
+UR  - https://doi.org/10.24963/ijcai.2019/635
+DO  - 10.24963/ijcai.2019/635
+ER  - 
+
+TY  - JOUR
+TI  - Cooperative Multi-Agent Deep Reinforcement Learning for Dynamic Virtual Network Allocation With Traffic Fluctuations (2022)
+AU  - Akito Suzuki
+AU  - Ryoichi Kawahara
+AU  - Shigeaki Harada
+PY  - 2022
+AB  - Network traffic and computing demand have been changing dramatically due to the growth of various types of network services, e.g., high-quality video delivery and operating system (OS) updates. To maximize the utilization efficiency of limited network resources, network resource control technology is required for smooth and quick operation when network demands change. Therefore, we propose a dynamic virtual network (VN) allocation method based on cooperative multi-agent deep reinforcement learning (Coop-MADRL). This method can quickly optimize network resources even while network demands are drastically changing by learning the relationship between network demand patterns and optimal allocation by using deep reinforcement learning (DRL) in advance. The key idea is to use a multi-agent technique for a reinforcement learning (RL) based dynamic VN allocation method, which can reduce the number of candidate actions per agent and can improve the performance for VN allocation. Moreover, a cooperation technique improves the efficiency of VN allocation. From results of a simulation evaluation, Coop-MADRL can calculate effective allocation within 1 s, which reduces the maximum server and link utilization and drastically reduces the constraint violations compared with that of the static VN allocation method. Furthermore, we revealed that the learning with various mixed traffic models could achieve a high generalization performance for all traffic patterns.
+UR  - https://doi.org/10.1109/tnsm.2022.3149243
+DO  - 10.1109/tnsm.2022.3149243
+ER  - 
+
+TY  - JOUR
+TI  - Dynamic Voltage Regulation in Active Distribution Networks Using Day-Ahead Multi-Agent Deep Reinforcement Learning (2024)
+AU  - Arman Ali
+AU  - Chaojie Li
+AU  - Branislav Hredzak
+PY  - 2024
+AB  - The voltage deviation in an active distribution network (ADN) can effectively be managed by using smart inverters' reactive power control. A cutting-edge multi-agent deep reinforcement learning (MADRL) techniques allow smart inverters to achieve localized and coordinated voltage control by learning to take optimal actions. However, existing researches have significantly overlooked reactive power planning before training the agents, leading to inefficient use of resources and a potential increase in power losses. Further, the pre-determined network topology is the major assumption in recent works, causing inappropriate reactive power injection/absorption by the inverters. Therefore, we proposed a day-ahead multi-argent deep reinforcement learning (DA-MADRL) for dynamic voltage regulation to address the issues with earlier works. Firstly, a model-free reactive power prediction scheme is proposed, followed by determining the optimal number and the location of participants. Secondly, the MADRL is followed to train optimally located inverters for voltage regulation. The learned parameters are broadcasted on the network on a day-ahead basis. We deployed a modified IEEE-33 bus system as a test bench to verify the efficacy of our method. The results demonstrate that our method outperforms contemporary techniques in reducing voltage variation and power losses by efficient resource utilization in a distribution network.
+UR  - https://doi.org/10.1109/tpwrd.2024.3358262
+DO  - 10.1109/tpwrd.2024.3358262
+ER  - 
+
+TY  - JOUR
+TI  - Attention-Shared Multi-Agent Actor–Critic-Based Deep Reinforcement Learning Approach for Mobile Charging Dynamic Scheduling in Wireless Rechargeable Sensor Networks (2022)
+AU  - Chengpeng Jiang
+AU  - Ziyang Wang
+AU  - Shuai Chen
+AU  - Jinglin Li
+AU  - Haoran Wang
+AU  - et al.
+PY  - 2022
+AB  - The breakthrough of wireless energy transmission (WET) technology has greatly promoted the wireless rechargeable sensor networks (WRSNs). A promising method to overcome the energy constraint problem in WRSNs is mobile charging by employing a mobile charger to charge sensors via WET. Recently, more and more studies have been conducted for mobile charging scheduling under dynamic charging environments, ignoring the consideration of the joint charging sequence scheduling and charging ratio control (JSSRC) optimal design. This paper will propose a novel attention-shared multi-agent actor-critic-based deep reinforcement learning approach for JSSRC (AMADRL-JSSRC). In AMADRL-JSSRC, we employ two heterogeneous agents named charging sequence scheduler and charging ratio controller with an independent actor network and critic network. Meanwhile, we design the reward function for them, respectively, by considering the tour length and the number of dead sensors. The AMADRL-JSSRC trains decentralized policies in multi-agent environments, using a centralized computing critic network to share an attention mechanism, and it selects relevant policy information for each agent at every charging decision. Simulation results demonstrate that the proposed AMADRL-JSSRC can efficiently prolong the lifetime of the network and reduce the number of death sensors compared with the baseline algorithms.
+UR  - https://doi.org/10.3390/e24070965
+DO  - 10.3390/e24070965
+ER  - 
+
+TY  - JOUR
+TI  - Deep multi-agent reinforcement learning for dynamic and stochastic vehicle routing problems (N/A)
+AU  - 
+AU  - Bono Guillaume
+AB  - Apprentissage par renforcement multi-agent profond pour les problèmes de planification de tournées dynamiques et stochastiques                 La planification de tournées de véhicules dans des environnements urbains denses est un problème difficile qui nécessite des solutions robustes et flexibles. Les approches existantes pour résoudre ces problèmes de planification de tournées dynamiques et stochastiques (DS-VRPs) sont souvent basés sur les mêmes heuristiques utilisées dans le cas statique et déterministe, en figeant le problème à chaque fois que la situation évolue. Au lieu de cela, nous proposons dans cette thèse d’étudier l’application de méthodes d’apprentissage par renforcement multi-agent (MARL) aux DS-VRPs en s’appuyant sur des réseaux de neurones profonds (DNNs). Plus précisément, nous avons d’abord contribuer à étendre les méthodes basées sur le gradient de la politique (PG) aux cadres des processus de décision de Markov (MDPs) partiellement observables et décentralisés (Dec-POMDPs). Nous avons ensuite proposé un nouveau modèle de décision séquentiel en relâchant la contrainte d’observabilité partielle que nous avons baptisé MDP multi-agent séquentiel (sMMDP). Ce modèle permet de décrire plus naturellement les DS-VRPs, dans lesquels les véhicules prennent la décision de servir leurs prochains clients à l’issu de leurs précédents services, sans avoir à attendre les autres. Pour représenter nos solutions, des politiques stochastiques fournissant aux véhicules des règles de décisions, nous avons développé une architecture de DNN basée sur des mécanismes d’attention (MARDAM). Nous avons évalué MARDAM sur un ensemble de bancs de test artificiels qui nous ont permis de valider la qualité des solutions obtenues, la robustesse et la flexibilité de notre approche dans un contexte dynamique et stochastique, ainsi que sa capacité à généraliser à toute une classe de problèmes sans avoir à être ré-entraînée. Nous avons également développé un banc de test plus réaliste à base d’une simulation micro-traffic, et présenté une preuve de concept de l’applicabilité de MARDAM face à une variété de situations différentes.
+UR  - https://doi.org/10.70675/428eaf46zca28z49c0zadd0zacb6d118d6ca
+DO  - 10.70675/428eaf46zca28z49c0zadd0zacb6d118d6ca
+ER  - 
+
+TY  - JOUR
+TI  - Multi-agent Route Planning using Deep Reinforcement Learning Techniques and Transformer Networks for Graph Analysis (N/A)
+AU  - 
+AU  - Fuertes Coiras Daniel
+AB  - Autonomous navigation has become an important challenge in our days, with applications such as package delivery, transportation, search-and-rescue, etc. In these scenarios, autonomous vehicles are tasked with visiting designated locations to perform specific actions. Historically, these vehicles have relied on human operators to navigate complex environments and complete mission objectives. However, having the necessary skills to control them in complex environments is complicated, especially in multi-agent systems where collaboration and simultaneous operations are essential. This complexity highlights the need for advanced navigation systems that can efficiently coordinate and ensure cooperation among fleets of vehicles. To address these challenges, researchers have traditionally modeled the problem as different vehicle routing problems, focusing on determining the most efficient routes for one or more vehicles.   This work introduces FCM-Transformer, a novel system designed to coordinate multiple agents cooperatively. FCM-Transformer employs a two-step approach: first, it groups and assigns regions to individual agents in an initial planning phase, and second, it predicts efficient routes for each agent in the route solving phase. At the heart of this model is a Transformer-based neural network, trained with deep reinforcement learning, that analyzes the environment and predicts high-quality routes. FCM-Transformer introduces a novel region-sharing strategy that encourages cooperation among agents and helps overcome the suboptimality of the initial clustering.   After this, NaviFormer neural network is presented as an evolution of FCM-Transformer. Contrary to FCM-Transformer, NaviFormer considers trajectory generation and obstacle avoidance to solve the common subproblems of route planning (waypoint sequencing) and path planning (trajectory prediction) as a unique and holistic navigation planning problem. This integrated approach enables NaviFormer to predict not only the best sequence of regions to visit, but also the precise, collision-free trajectories that connect them. By eliminating the need for separate solvers, NaviFormer offers a more direct and efficient solution to the navigation problem.   The final model introduced in this work is TOP-Former, which offers a straight solution to the well-known Team Orienteering Problem for multiple agents. Unlike FCM-Transformer, which divides the environment into clusters, TOP-Former considers the state of all agents simultaneously, ensuring robust coordination and collaboration. By analyzing the global context of all agents, TOP-Former can predict high-quality routes that enable agents to collaborate effectively and achieve near-optimal performance. This direct approach ensures that the model can handle complex multi-agent scenarios more efficiently than previous methods.   A series of experiments were conducted to evaluate the performance of the proposed models, including variations in scenario conditions, ablation studies, and comparative analyzes with other state-of-the-art algorithms. The findings demonstrate the competitive performance of the models presented, showcasing their ability to achieve an excellent balance between solution quality and computational efficiency. The results reflect the robustness of the models under various conditions, highlighting their suitability for practical applications. However, certain open issues, common across the state of the art, remain unresolved, such as scalability problems. This is related to an increase of the complexity of the problem due to greater number of nodes, obstacles, or agents, which is often manifested as a degradation in the quality and the computational cost of the solutions. Although some efforts have been made to address these limitations, the scalability problem still remains a critical barrier to achieve near-optimal performance in large-scale complex problems.  RESUMEN  La navegación autónoma es un desafío moderno importante, con aplicaciones como entrega de paquetes, transporte, búsqueda y rescate, etc. En estos escenarios, los vehículos autónomos deben visitar regiones en las que realizar ciertas acciones. Históricamente, estos vehículos han dependido de operadores humanos para navegar y cumplir con las misiones. Sin embargo, tener las habilidades necesarias para controlarlos en entornos complejos es complicado, especialmente en sistemas multiagente donde la colaboración simultánea es esencial. Esta complejidad resalta la necesidad de sistemas de navegación capaces de garantizar la cooperación entre vehículos. Para abordar este reto, los investigadores han modelado tradicionalmente el desafío como diversos problemas de enrutamiento de vehículos, centrados en determinar las rutas más eficientes para uno o más vehículos.   Este trabajo presenta FCM-Transformer, un sistema novedoso para coordinar múltiples agentes. FCM-Transformer funciona en dos etapas: primero, agrupa regiones y las asigna los a agentes en la fase de planificación inicial y, después, genera rutas eficientes para cada agente en la fase de predicción de rutas. El núcleo de este modelo se basada en una red Transformer, entrenada con aprendizaje por refuerzo profundo, que analiza el entorno y predice rutas de alta calidad. FCM-Transformer introduce una novedosa estrategia de compartición de regiones que fomenta la cooperación entre agentes y ayuda a subsanar los rasgos subóptimos de la planificación inicial.   A continuación, se presenta la red NaviFormer como una evolución de FCM-Transformer. A diferencia de FCM-Transformer, NaviFormer genera trayectorias y evita posibles obstáculos para resolver los problemas de planificación de rutas (secuenciación de regiones) y planificación de caminos (predicción de trayectorias) como un problema de navegación único y holístico. Este enfoque permite a NaviFormer predecir no solo la mejor secuencia de regiones a visitar, sino también las trayectorias libres de colisiones que las conectan. Al eliminar la necesidad de emplear soluciones separadas, NaviFormer ofrece un enfoque más directo y eficiente al problema de navegación.   El modelo final presentado es TOP-Former, que ofrece una solución directa al conocido Team Orienteering Problem (Problema de Orientación en Equipo) para múltiples agentes. A diferencia de FCM-Transformer, que divide el entorno en clústeres, TOP-Former considera el estado de todos los agentes simultáneamente, asegurando una coordinación robusta. Al analizar el contexto global de todos los agentes, TOP-Former predice rutas de alta calidad que permiten a los agentes colaborar y lograr un rendimiento cercano al óptimo. Este enfoque directo asegura que el modelo pueda manejar escenarios complejos multiagente de manera más eficiente que los métodos anteriores.   Se realizaron una serie de experimentos para evaluar el rendimiento de los modelos propuestos, incluyendo variaciones en las condiciones de entorno, estudios de ablación y análisis comparativos con otros algoritmos del estado del arte. Los hallazgos demuestran un rendimiento competitivo de los modelos presentados, destacando su capacidad para lograr un excelente equilibrio entre calidad de solución y eficiencia computacional. Los resultados reflejan la robustez de los modelos en diversas condiciones, lo que resalta su idoneidad para aplicaciones prácticas. Sin embargo, ciertos problemas, comunes en el estado del arte, permanecen sin resolver, como la escalabilidad. Esta está relacionada con el aumento de la complejidad de los escenarios (ya sea por el incremento del número de nodos, obstáculos o agentes) y suele manifestarse como una degradación en la calidad de las soluciones y el tiempo de computación. Aunque se han realizado esfuerzos para abordar estas limitaciones, el problema de escalabilidad sigue siendo una barrera para lograr un rendimiento casi óptimo en problemas complejos y de gran escala.
+UR  - https://doi.org/10.20868/upm.thesis.91225
+DO  - 10.20868/upm.thesis.91225
+ER  - 
+

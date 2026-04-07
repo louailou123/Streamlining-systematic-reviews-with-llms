@@ -1,8 +1,8 @@
 from typing import Dict, Any
 from llm.llm import get_llm
+from llm.structured_parser import invoke_structured
 from langchain_core.prompts import PromptTemplate
-from langchain_core.messages import HumanMessage
-from tools.serpapi_tool import tools
+from langchain_core.messages import HumanMessage, RemoveMessage
 
 from State.state import LiRAState
 from Schemas.schemas import (
@@ -17,29 +17,25 @@ from Prompts.prompts import (
     PROMPT_1_INITIAL_GENERATION,
     PROMPT_2_FRAMEWORK_SELECTION,
     PROMPT_3_FRAMEWORK_APPLICATION,
-    PROMPT_4_FEASIBILITY,
-    PROMPT_5_ORIGINALITY_SURVEYS,
+    PROMPT_4_FEASIBILITY_SEARCH,
+    PROMPT_4_FEASIBILITY_PARSE,
+    PROMPT_5_ORIGINALITY_SURVEYS_SEARCH,
+    PROMPT_5_ORIGINALITY_SURVEYS_PARSE,
     PROMPT_6_ORIGINALITY_RANKED
 )
 
 
-def _extract_text(msg) -> str:
-    """Extracts plain text from a message, handling Gemini's block format."""
-    content = msg.content
-    if isinstance(content, str):
-        return content or "No information available."
-    if isinstance(content, list):
-        # Gemini returns [{'type': 'text', 'text': '...', 'extras': ...}]
-        texts = [block.get("text", "") for block in content if isinstance(block, dict)]
-        return " ".join(texts) or "No information available."
-    return str(content) or "No information available."
+
 
 
 def generate_initial_questions_node(state: LiRAState) -> Dict[str, Any]:
     topic = state.get("topic", "")
     llm = get_llm()
-    chain = PromptTemplate.from_template(PROMPT_1_INITIAL_GENERATION) | llm.with_structured_output(InitialQuestions)
-    result = chain.invoke({"topic": topic})
+    # Explicitly creating the template and ensuring it only has 'topic'
+    template = PromptTemplate(template=PROMPT_1_INITIAL_GENERATION, input_variables=["topic"])
+    prompt_val = template.invoke({"topic": topic})
+    result = invoke_structured(llm, prompt_val, InitialQuestions)
+    print(result)
     
     return {
         "initial_questions": result.questions,
@@ -50,8 +46,10 @@ def generate_initial_questions_node(state: LiRAState) -> Dict[str, Any]:
 def select_framework_node(state: LiRAState) -> Dict[str, Any]:
     topic = state.get("topic", "")
     llm = get_llm()
-    chain = PromptTemplate.from_template(PROMPT_2_FRAMEWORK_SELECTION) | llm.with_structured_output(FrameworkSelectionResult)
-    result = chain.invoke({"topic": topic})
+    # Explicitly creating the template and ensuring it only has 'topic'
+    template = PromptTemplate(template=PROMPT_2_FRAMEWORK_SELECTION, input_variables=["topic"])
+    prompt_val = template.invoke({"topic": topic})
+    result = invoke_structured(llm, prompt_val, FrameworkSelectionResult)
     
     return {
         "selected_framework": result.framework,
@@ -67,30 +65,36 @@ def apply_framework_node(state: LiRAState) -> Dict[str, Any]:
     framework = state.get("selected_framework", "PICO")
     
     llm = get_llm()
-    chain = PromptTemplate.from_template(PROMPT_3_FRAMEWORK_APPLICATION) | llm.with_structured_output(FrameworkApplicationResult)
-    result = chain.invoke({"question": candidate, "framework": framework})
+    # Explicitly creating the template and ensuring it only has 'question' and 'framework'
+    template = PromptTemplate(template=PROMPT_3_FRAMEWORK_APPLICATION, input_variables=["question", "framework"])
+    prompt_val = template.invoke({"question": candidate, "framework": framework})
+    result = invoke_structured(llm, prompt_val, FrameworkApplicationResult)
     
-    # Setup prompt for next node's initial Tool using HumanMessage
+    # Setup search prompt for next node
     timeframe = state.get("timeframe", "3 months")
-    feasibility_prompt = PROMPT_4_FEASIBILITY.format(question=result.reframed_question, timeframe=timeframe)
+    feasibility_search_prompt = PROMPT_4_FEASIBILITY_SEARCH.format(question=result.reframed_question, timeframe=timeframe)
     
     print(f"Reframed question: {result.reframed_question}")
     
     return {
         "framework_breakdown": result.breakdown,
         "reframed_question": result.reframed_question,
-        "messages": [HumanMessage(content=feasibility_prompt)],
+        "messages": [HumanMessage(content=feasibility_search_prompt)],
         "logs": state.get("logs", []) + ["Applied framework to reframe question."]
     }
 
 
 def parse_feasibility_node(state: LiRAState) -> Dict[str, Any]:
     llm = get_llm()
-    text = _extract_text(state["messages"][-1])
-    parsed = llm.with_structured_output(FeasibilityAssessment).invoke([HumanMessage(content=text)])
+    # Adding PARSE instruction to messages for structured extraction
+    question = state.get("reframed_question", state.get("topic", ""))
+    timeframe = state.get("timeframe", "3 months")
+    parse_instruction = PROMPT_4_FEASIBILITY_PARSE.format(question=question, timeframe=timeframe)
     
-    topic = state.get("topic", "")
-    originality_prompt = PROMPT_5_ORIGINALITY_SURVEYS.format(topic=topic)
+    messages = state["messages"] + [HumanMessage(content=parse_instruction)]
+    parsed = invoke_structured(llm, messages, FeasibilityAssessment)
+    
+    originality_search_prompt = PROMPT_5_ORIGINALITY_SURVEYS_SEARCH.format(question=question)
     
     print(f"Feasibility Status: {parsed.feasibility_status}")
     print(f"Estimated Publications: {parsed.estimated_publications}")
@@ -98,22 +102,25 @@ def parse_feasibility_node(state: LiRAState) -> Dict[str, Any]:
     return {
         "feasibility_estimation": parsed.estimated_publications,
         "feasibility_status": parsed.feasibility_status,
-        "messages": [HumanMessage(content=originality_prompt)],
+        "messages": [RemoveMessage(id=m.id) for m in state["messages"] if hasattr(m, "id") and m.id] + [HumanMessage(content=originality_search_prompt)],
         "logs": state.get("logs", []) + [f"Feasibility: {parsed.feasibility_status}"]
     }
 
 
 def parse_originality_node(state: LiRAState) -> Dict[str, Any]:
     llm = get_llm()
-    text = _extract_text(state["messages"][-1])
-    parsed = llm.with_structured_output(OriginalityAssessment).invoke([HumanMessage(content=text)])
+    # Adding PARSE instruction to messages for structured extraction
+    question = state.get("reframed_question", state.get("topic", ""))
+    parse_instruction = PROMPT_5_ORIGINALITY_SURVEYS_PARSE.format(question=question)
+    
+    messages = state["messages"] + [HumanMessage(content=parse_instruction)]
+    parsed = invoke_structured(llm, messages, OriginalityAssessment)
 
     # Setup prompt 6 for final Ranked Questions
-    topic = state.get("topic", "")
     timeframe = state.get("timeframe", "3 months")
     gaps_str = parsed.gaps
     
-    final_prompt = PROMPT_6_ORIGINALITY_RANKED.format(topic=topic, timeframe=timeframe, gaps=gaps_str)
+    final_prompt = PROMPT_6_ORIGINALITY_RANKED.format(question=question, timeframe=timeframe, gaps=gaps_str)
     
     print(f"Originality Overlap: {parsed.overlap}")
     
@@ -121,19 +128,20 @@ def parse_originality_node(state: LiRAState) -> Dict[str, Any]:
         "survey_summaries": [{"title": s.title, "summary": s.summary} for s in parsed.surveys],
         "overlap": parsed.overlap,
         "gaps": parsed.gaps,
-        "messages": [HumanMessage(content=final_prompt)],
+        "messages": [RemoveMessage(id=m.id) for m in state["messages"] if hasattr(m, "id") and m.id] + [HumanMessage(content=final_prompt)],
         "logs": state.get("logs", []) + ["Parsed originality assessment (overlap/gaps)."]
     }
 
 
 def generate_final_ranked_questions_node(state: LiRAState) -> Dict[str, Any]:
     llm = get_llm()
-    text = _extract_text(state["messages"][-1])
-    parsed = llm.with_structured_output(FinalRankedQuestions).invoke([HumanMessage(content=text)])
+    # Now passing the full history (state["messages"]) instead of just the last message
+    parsed = invoke_structured(llm, state["messages"], FinalRankedQuestions)
     
     return {
         "final_ranked_questions": [{"novelty_level": q.novelty_level, "question": q.question} for q in parsed.questions],
         "current_step": "Step 1 Complete",
+        "messages": [RemoveMessage(id=m.id) for m in state["messages"] if hasattr(m, "id") and m.id],
         "logs": state.get("logs", []) + ["Generated final ranked questions."]
     }
 

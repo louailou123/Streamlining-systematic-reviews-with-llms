@@ -45,8 +45,12 @@ class FinalRankedQuestions(BaseModel):
 class Keywords(BaseModel):
     keywords: List[str] = Field(description="list of relevant keywords")
 
+class DatabaseItem(BaseModel):
+    name: str = Field(description="Name of the database")
+    justification: str = Field(description="Justification for why this database is relevant")
+
 class DatabaseSelection(BaseModel):
-    databases: List[str]
+    databases: List[DatabaseItem]
 
 class SearchQuery(BaseModel):
     query: Dict[str,str] = Field(description="each database mapped with a search query")
@@ -54,6 +58,16 @@ class SearchQuery(BaseModel):
 class Criteria(BaseModel):
     inclusion: List[str]
     exclusion: List[str]
+
+class Paper(BaseModel):
+    title: str = Field(description="Title of the paper")
+    year: str = Field(description="Year of publication")
+    url: str = Field(description="Direct URL to the paper if it exists")
+    source: str = Field(description="Database or API source (e.g., arXiv, Semantic Scholar)")
+    abstract: str = Field(description="Brief abstract of the paper")
+
+class PapersExtract(BaseModel):
+    papers: List[Paper] = Field(description="List of all extracted papers")
 
 # =========================
 # STEP 3 — SCREENING

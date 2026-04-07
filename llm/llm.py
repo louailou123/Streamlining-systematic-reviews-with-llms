@@ -22,9 +22,9 @@ def get_llm():
         api_key =os.getenv("GEMINI_API_KEY")
         if api_key:
             os.environ["GEMINI_API_KEY"] = api_key
-
     return init_chat_model(
         model=model,
         model_provider=provider,
-        temperature=0.1,
+        temperature=0,
+        max_retries=3,
     )

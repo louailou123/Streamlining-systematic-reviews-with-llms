@@ -37,6 +37,9 @@ class LiRAState(TypedDict):
     # DATA STORAGE (CSV PIPELINE)
     # =========================
     raw_dataset_csv: Optional[str]          # initial collected papers
+    raw_dataset_ris: Optional[str]          # RIS export for Zotero
+    prisma_doc: Optional[str]               # PRISMA search strategy doc
+    search_metadata: List[Dict]             # per-database: query, count, date
     deduplicated_csv: Optional[str]         # after duplicate removal
     screened_llm_csv: Optional[str]           # optional separate labels file
     screened_human_csv:Optional[str]# after LLM/human screening
