@@ -73,8 +73,10 @@ class PapersExtract(BaseModel):
 # STEP 3 — SCREENING
 # =========================
 
-class ClassificationResult(BaseModel):
-    label: int  # 0 or 1
+class ScreeningResult(BaseModel):
+    included: int = Field(description="1 if the paper meets at least one inclusion criterion, 0 otherwise")
+    excluded: int = Field(description="1 if the paper matches at least one exclusion criterion, 0 otherwise")
+    justification: str = Field(description="Brief reason explaining why the paper was included or excluded, citing which specific criteria matched")
 
 # =========================
 # STEP 4 — INSIGHTS

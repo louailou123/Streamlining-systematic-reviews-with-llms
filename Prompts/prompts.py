@@ -156,32 +156,33 @@ Given the following set of keywords:
 
 {keywords}
 
-Generate multiple high-quality Boolean search queries.
+And the following target databases:
+
+{databases}
+
+Generate high-quality search queries tailored to each database.
 
 Requirements:
 - Use appropriate Boolean operators (AND, OR)
 - Group synonyms using parentheses
-- Focus on the following open-access platforms: Google Scholar, arXiv, DOAJ, CORE, and Semantic Scholar.
 - Balance between recall (broad coverage) and precision (relevance)
 
 #### Tips for Query Design
 - Start broad, then refine
 - Use wildcards (*) cautiously
 - Adapt query logic to each platform's syntax
-- CRITICAL: arXiv and Semantic Scholar APIs strictly reject excessively long queries or crash. For `arXiv` and `Semantic Scholar` ONLY use a maximum of 3 to 4 extremely core keywords without complex nested boolean logic.
+- CRITICAL: arXiv, PubMed, and OpenAlex APIs strictly reject excessively long queries or crash. For these platforms ONLY use a maximum of 3 to 4 extremely core keywords without complex nested boolean logic. Google Scholar can handle full boolean queries.
 
 Respond with EXACTLY this JSON structure:
 
 {{
   "query": {{
-    "Google Scholar": "...",
-    "arXiv": "...",
-    "DOAJ": "...",
-    "CORE": "...",
-    "Semantic Scholar": "..."
+    "Database Name 1": "query string",
+    "Database Name 2": "query string"
   }}
 }}
 
+Make sure you include exactly the databases listed above.
 DO NOT omit the top-level "query" field.
 DO NOT return a bare dictionary.
 """
@@ -276,22 +277,32 @@ Ensure that:
 """
 
 # =========================
-# STEP 3 — PAPER FILTERING
+# STEP 3 — PAPER SCREENING
 # =========================
 
-LLM_CLASSIFICATION_PROMPT = """
-You are assisting in screening papers for a systematic literature review.
+LLM_SCREENING_PROMPT = """You are an expert researcher and systematic reviews specialist screening papers for a literature review.
 
-Evaluate whether the following paper is relevant to the research topic.
-
-Title:
+**Paper Title:**
 {title}
 
-Abstract:
+**Paper Abstract:**
 {abstract}
 
-Provide a clear decision and briefly justify your reasoning.
-"""
+**Research Question:**
+{question}
+
+**Inclusion Criteria:**
+{inclusion_criteria}
+
+**Exclusion Criteria:**
+{exclusion_criteria}
+
+**Task:**
+Carefully analyze the title and abstract of this paper.
+- Evaluate whether it meets any of the **inclusion criteria** (set included = 1 if yes, 0 if no).
+- Evaluate whether it matches any of the **exclusion criteria** (set excluded = 1 if yes, 0 if no).
+- Provide a brief justification explaining which specific criteria the paper matched and why."""
+
 
 
 # =========================

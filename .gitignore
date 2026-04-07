@@ -3,3 +3,8 @@
 .vscode/*
 .env
 __pycache__
+logs/*
+raw_dataset.csv
+raw_dataset.ris
+screened_llm_dataset.csv
+prisma_search_strategy.md

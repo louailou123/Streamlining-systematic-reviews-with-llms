@@ -1,11 +1,12 @@
 # PRISMA Search Strategy Documentation
 
-**Date Generated:** 2026-04-07
-**Total Unique Papers Retained:** 34
+**Date Generated:** 2026-04-08
+**Total Unique Papers Retained:** 71
 
 | Database | Search Query | Records Found | Retrieval Date |
 |---|---|---|---|
-| Google Scholar | `(Multi-Agent Deep Reinforcement Learning OR MADRL) AND (Dynamic Communication Networks OR Distributed Optimization) AND (Convergence Speed OR Stability OR Scalability)` | 20 | 2026-04-07 |
-| arXiv | `Multi-Agent Deep Reinforcement Learning Dynamic Communication` | 9 | 2026-04-07 |
-| Openalex | `Multi-Agent Deep Reinforcement Learning Dynamic Networks` | 6 | 2026-04-07 |
-| Crossref | `Multi-Agent Deep Reinforcement Learning Dynamic Networks` | 3 | 2026-04-07 |
+| Google Scholar | `(muscle hypertrophy OR skeletal muscle hypertrophy OR muscle growth OR hypertrophy) AND (resistance training OR resistance exercise OR strength training) AND (training frequency OR exercise frequency OR training day frequency) AND (dose-response relationship OR muscle adaptation OR muscle development)` | 20 | 2026-04-08 |
+| arXiv | `muscle hypertrophy resistance training` | 15 | 2026-04-08 |
+| Openalex | `muscle hypertrophy resistance training` | 15 | 2026-04-08 |
+| Pubmed | `muscle hypertrophy resistance training` | 15 | 2026-04-08 |
+| Crossref | `(muscle hypertrophy OR skeletal muscle hypertrophy OR muscle growth OR hypertrophy) AND (resistance training OR resistance exercise OR strength training) AND (training frequency OR exercise frequency OR training day frequency) AND (dose-response relationship OR muscle adaptation OR muscle development)` | 15 | 2026-04-08 |

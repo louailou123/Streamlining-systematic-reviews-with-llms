@@ -6,13 +6,11 @@ from langchain_core.messages import HumanMessage
 from State.state import LiRAState
 from Schemas.schemas import (
     Keywords,
-    DatabaseSelection,
     SearchQuery,
     Criteria
 )
 from Prompts.prompts import (
     KEYWORD_EXTRACTION_PROMPT,
-    DATABASE_SELECTION_PROMPT,
     QUERY_BUILDER_PROMPT,
     CRITERIA_PROMPT
 )
@@ -34,31 +32,33 @@ def extract_keywords_node(state: LiRAState) -> Dict[str, Any]:
     }
 
 def select_databases_node(state: LiRAState) -> Dict[str, Any]:
-    """Step 2.b: Select and prioritize academic databases."""
-    topic = state.get("topic", "")
-    llm = get_llm()
-    # Explicitly creating the template and ensuring it only has 'topic'
-    template = PromptTemplate(template=DATABASE_SELECTION_PROMPT, input_variables=["topic"])
-    prompt_val = template.invoke({"topic": topic})
-    result = invoke_structured(llm, prompt_val, DatabaseSelection)
-    
-    # Ensure open-access databases from user request are considered if appropriate
-    # The prompt engineering already guides the LLM to select best ones.
-    
-    db_names = [db.name for db in result.databases]
-    
+    """Step 2.b: Databases are pre-configured from available search tools.
+    This node just logs the selection — no LLM call needed."""
+    databases = state.get("databases", [])
+
+    selected_databases = [
+        {"name": db, "justification": "Available as a search tool in the pipeline"}
+        for db in databases
+    ]
+
     return {
-        "databases": db_names,
-        "logs": state.get("logs", []) + [f"Selected databases: {', '.join(db_names)}"]
+        "selected_databases": selected_databases,
+        "logs": state.get("logs", []) + [
+            f"Using {len(databases)} pre-configured databases: {', '.join(databases)}"
+        ]
     }
 
 def build_search_queries_node(state: LiRAState) -> Dict[str, Any]:
     """Step 2.a: Construct optimized Boolean queries for each database."""
     keywords = state.get("keywords", [])
+    databases = state.get("databases", [])
     llm = get_llm()
-    # Explicitly creating the template and ensuring it only has 'keywords'
-    template = PromptTemplate(template=QUERY_BUILDER_PROMPT, input_variables=["keywords"])
-    prompt_val = template.invoke({"keywords": ", ".join(keywords)})
+    
+    template = PromptTemplate(template=QUERY_BUILDER_PROMPT, input_variables=["keywords", "databases"])
+    prompt_val = template.invoke({
+        "keywords": ", ".join(keywords),
+        "databases": ", ".join(databases)
+    })
     result = invoke_structured(llm, prompt_val, SearchQuery)
     
     return {
@@ -82,17 +82,61 @@ def define_criteria_node(state: LiRAState) -> Dict[str, Any]:
     }
 
 def prepare_search_node(state: LiRAState) -> Dict[str, Any]:
-    """Prepares the execution of search queries by setting the prompt for the LLM."""
+    """Execute search queries programmatically using tools/serpapi_tool.py functions."""
     queries = state.get("search_queries", {})
-    from Prompts.prompts import EXECUTE_SEARCH_PROMPT
+    from langchain_core.messages import AIMessage, ToolMessage
+    import uuid
+
+    # Map our predefined databases to tool names
+    db_to_tool = {
+        "Google Scholar": "google_scholar_search",
+        "arXiv": "arxiv_search",
+        "OpenAlex": "openalex_search",
+        "PubMed": "pubmed_search",
+        "CrossRef": "crossref_search",
+    }
     
-    # Format queries into the prompt
-    queries_str = "\n".join([f"- {db}: {query}" for db, query in queries.items()])
-    prompt = EXECUTE_SEARCH_PROMPT.format(queries=queries_str)
-    
+    from tools.serpapi_tool import (
+        google_scholar_search, arxiv_search, openalex_search, pubmed_search, crossref_search
+    )
+    tools_map = {
+        "google_scholar_search": google_scholar_search,
+        "arxiv_search": arxiv_search,
+        "openalex_search": openalex_search,
+        "pubmed_search": pubmed_search,
+        "crossref_search": crossref_search,
+    }
+
+    tool_calls = []
+    tool_messages = []
+
+    for db_name, query in queries.items():
+        tool_name = db_to_tool.get(db_name)
+        if not tool_name or tool_name not in tools_map:
+            continue
+
+        tool_func = tools_map[tool_name]
+        
+        tool_call_id = str(uuid.uuid4())
+        tool_calls.append({
+            "name": tool_name,
+            "args": {"query": query},
+            "id": tool_call_id
+        })
+
+        # Execute the tool
+        try:
+            result = tool_func.invoke({"query": query})
+        except Exception as e:
+            result = f"{tool_name} Error: {str(e)}"
+        
+        tool_messages.append(ToolMessage(content=result, tool_call_id=tool_call_id, name=tool_name))
+
+    ai_msg = AIMessage(content="I have executed the searches programmatically.", tool_calls=tool_calls)
+
     return {
-        "messages": [HumanMessage(content=prompt)],
-        "logs": state.get("logs", []) + ["Prepared search execution prompt."]
+        "messages": [ai_msg] + tool_messages,
+        "logs": state.get("logs", []) + [f"Programmatically executed search across {len(tool_calls)} databases."]
     }
 
 def _reconstruct_abstract(inverted_index: dict) -> str:
@@ -229,8 +273,6 @@ def save_papers_node(state: LiRAState) -> Dict[str, Any]:
         return {"logs": state.get("logs", []) + ["No tool search results to extract papers from."]}
 
     all_papers = []
-    seen_titles = set()
-    seen_dois = set()
     search_metadata = []
 
     for msg in tool_messages:
@@ -275,18 +317,7 @@ def save_papers_node(state: LiRAState) -> Dict[str, Any]:
                 if "doi.org/" in url and doi == "N/A":
                     doi = url.split("doi.org/")[-1].strip()
 
-                norm_title = re.sub(r'\s*\(.*$', '', title).strip().lower()
-
-                # Deduplication logic
-                is_dup = False
-                if doi != "N/A" and doi in seen_dois:
-                    is_dup = True
-                elif norm_title in seen_titles:
-                    is_dup = True
-
-                if not is_dup and len(abstract) > 50:
-                    if doi != "N/A": seen_dois.add(doi)
-                    seen_titles.add(norm_title)
+                if len(abstract) > 50:
                     all_papers.append({
                         "title": title, "year": year, "authors": authors, "url": url,
                         "doi": doi, "source": db_name, "abstract": abstract
@@ -311,10 +342,7 @@ def save_papers_node(state: LiRAState) -> Dict[str, Any]:
                 year     = pub_m.group(1)            if pub_m   else "N/A"
                 authors  = authors_m.group(1).strip() if authors_m else "Unknown"
 
-                norm_title = re.sub(r'\s*\(.*$', '', title).strip().lower()
-                
-                if norm_title not in seen_titles and len(abstract) > 50:
-                    seen_titles.add(norm_title)
+                if len(abstract) > 50:
                     all_papers.append({
                         "title": title, "year": year, "authors": authors, "url": "N/A", "doi": "N/A",
                         "source": "arXiv", "abstract": abstract
@@ -329,7 +357,7 @@ def save_papers_node(state: LiRAState) -> Dict[str, Any]:
             "date": datetime.now().strftime("%Y-%m-%d")
         })
 
-    print(f"\n[DEBUG save_papers_node] Directly parsed {len(all_papers)} unique papers from tool outputs.")
+    print(f"\n[DEBUG save_papers_node] Directly parsed {len(all_papers)} papers from tool outputs.")
 
     # -----------------------------------------------------------
     # Enrichment Phase (Abstracts & DOIs & Metadata)
@@ -378,17 +406,11 @@ def save_papers_node(state: LiRAState) -> Dict[str, Any]:
 
         # STRICT VALIDATION: discard if abstract is still inadequate
         final_abs = p["abstract"]
-        if final_abs in ("N/A", "No Abstract available", "") or len(final_abs) < 200 or "…" in final_abs or "..." in final_abs:
+        if final_abs in ("N/A", "No Abstract available", "") or len(final_abs) < 200 or "\u2026" in final_abs or "..." in final_abs:
             p["title"] = "MARK_FOR_DELETION"
             continue
-            
-        # Deduplicate DOIs discovered post-enrichment
-        if needs_doi and p["doi"] != "N/A" and p["doi"] in seen_dois:
-            p["title"] = "MARK_FOR_DELETION"
-        elif p["doi"] != "N/A":
-            seen_dois.add(p["doi"])
 
-    # Remove duplicates and incomplete papers
+    # Remove incomplete papers (deduplication is handled by agent_3 deduplicate_node)
     all_papers = [p for p in all_papers if p["title"] != "MARK_FOR_DELETION"]
     
     print(f"[DEBUG save_papers_node] Enriched {enriched_count}/{total_needed} papers missing DOIs or full abstracts.")

@@ -21,6 +21,10 @@ from agents.agent_2 import (
     prepare_search_node,
     save_papers_node
 )
+from agents.agent_3 import (
+    deduplicate_node,
+    llm_classify_node
+)
 from tools.serpapi_tool import tools
 
 # Define toolsets
@@ -136,9 +140,11 @@ def build_lira_graph():
     workflow.add_node("build_search_queries", build_search_queries_node)
     workflow.add_node("define_criteria", define_criteria_node)
     workflow.add_node("prepare_search", prepare_search_node)
-    workflow.add_node("search_llm_call", llm_call_tools_all)
-    workflow.add_node("tool_node_search", truncated_tool_node_factory(tools))
     workflow.add_node("save_papers", save_papers_node)
+
+    # Step 3 — Screening
+    workflow.add_node("deduplicate", deduplicate_node)
+    workflow.add_node("llm_classify", llm_classify_node)
 
     # Edges - Step 1.a
     workflow.add_edge(START, "generate_initial_questions")
@@ -165,27 +171,11 @@ def build_lira_graph():
     workflow.add_edge("select_databases", "build_search_queries")
     workflow.add_edge("build_search_queries", "define_criteria")
     workflow.add_edge("define_criteria", "prepare_search")
-
-    def should_continue_search(state) -> Literal["tool_node_search", "save_papers"]:
-        last_message = state["messages"][-1]
-        if getattr(last_message, "tool_calls", None):
-            # Count only search-phase tool messages (after prepare_search)
-            msgs = state["messages"]
-            search_tool_count = 0
-            in_search = False
-            for m in msgs:
-                if hasattr(m, 'content') and isinstance(m.content, str) and 'execute the following search queries' in m.content:
-                    in_search = True
-                if in_search and isinstance(m, ToolMessage):
-                    search_tool_count += 1
-            if search_tool_count < MAX_SEARCH_ITERATIONS:
-                return "tool_node_search"
-        return "save_papers"
-
-    workflow.add_edge("prepare_search", "search_llm_call")
-    workflow.add_conditional_edges("search_llm_call", should_continue_search)
-    workflow.add_edge("tool_node_search", "search_llm_call")
-    workflow.add_edge("save_papers", END)
+    workflow.add_edge("prepare_search", "save_papers")
+    # Step 3 edges
+    workflow.add_edge("save_papers", "deduplicate")
+    workflow.add_edge("deduplicate", "llm_classify")
+    workflow.add_edge("llm_classify", END)
 
     return workflow.compile()
 
@@ -361,23 +351,45 @@ if __name__ == "__main__":
         elif node_name == "tool_node_search":
             safe_print(f"{C.YELLOW}Retrieving papers from external sources...{C.RESET}")
 
+        # ── Step 3 — Screening ──
+        elif node_name == "deduplicate":
+            section("STEP 3.a — DEDUPLICATION", C.MAGENTA)
+            dedup_csv = state_update.get("deduplicated_csv", "N/A")
+            kv("Output File", dedup_csv, C.GREEN)
+
+        elif node_name == "llm_classify":
+            section("STEP 3.b — LLM SCREENING", C.MAGENTA)
+            screened_csv = state_update.get("screened_llm_csv", "N/A")
+            kv("Output File", screened_csv, C.GREEN)
+
+    # ── Initialize logger ──────────────────────────────────────────
+    from logger import LiRALogger
+    plog = LiRALogger()
+
     graph = build_lira_graph()
+    plog.log_graph_structure(graph)
 
     print_graph_structure(graph)
     section("EXECUTING LIRA PIPELINE", C.CYAN)
 
     initial_input = {
-        "topic": "the challenges of using MADRL in highly dynamic communication networks",
+        "topic": "training days effect on muscles",
         "timeframe": "3 months",
+        "databases": ["Google Scholar", "arXiv", "OpenAlex", "PubMed", "CrossRef"],
         "messages": [],
         "logs": []
     }
+
+    plog.log_initial_input(initial_input)
 
     final_state = None
 
     try:
         for event in graph.stream(initial_input):
             for node_name, state_update in event.items():
+                plog.node_start(node_name)
+
+                # ── Console output ──
                 section(f"NODE: {node_name}", C.CYAN)
 
                 if "messages" in state_update:
@@ -390,6 +402,9 @@ if __name__ == "__main__":
 
                 print_node_summary(node_name, state_update)
 
+                # ── File logging ──
+                plog.node_end(node_name, state_update)
+
                 if node_name == "generate_final_ranked_questions":
                     final_state = state_update
 
@@ -399,6 +414,7 @@ if __name__ == "__main__":
         kv("Error Message", str(e), C.RED)
         safe_print()
         safe_print(f"{C.DIM}{traceback.format_exc()}{C.RESET}")
+        plog.log_error(e)
 
     section("FINAL RESULTS", C.GREEN)
 
@@ -410,3 +426,9 @@ if __name__ == "__main__":
             safe_print(f"  {idx}. [{novelty}] {question}")
     else:
         safe_print("Final ranked questions not found in state.")
+
+    plog.log_final_state(final_state)
+    plog.log_summary()
+
+    safe_print()
+    safe_print(f"{C.GREEN}Detailed log: {plog.log_file}{C.RESET}")
