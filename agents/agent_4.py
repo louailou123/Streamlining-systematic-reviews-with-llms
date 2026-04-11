@@ -35,14 +35,20 @@ def _normalize_text(value: str) -> str:
     return " ".join(str(value).replace("\r", " ").replace("\n", " ").split()).strip()
 
 
-def _split_multi(value: str) -> List[str]:
+def _split_multi(value: str, split_commas: bool = False) -> List[str]:
     if not value:
         return []
+
+    text = str(value).replace("|", ";")
+    if split_commas:
+        text = text.replace(",", ";")
+
     items: List[str] = []
-    for part in str(value).replace("|", ";").split(";"):
+    for part in text.split(";"):
         clean = _normalize_text(part)
         if clean and clean.lower() not in {"unknown", "n/a", "none"} and clean not in items:
             items.append(clean)
+
     return items
 
 
@@ -153,11 +159,16 @@ def _validate_extraction(result: ThematicPaperExtraction, has_abstract: bool) ->
         issues.append("High-confidence extraction should include evidence_snippets")
     return len(issues) == 0, issues
 
-def _top_multivalue(rows: List[dict], keys: List[str], top_n: int = 20) -> Dict[str, int]:
+def _top_multivalue(
+    rows: List[dict],
+    keys: List[str],
+    top_n: int = 20,
+    split_commas: bool = False,
+) -> Dict[str, int]:
     counter: Counter = Counter()
     for row in rows:
         raw = _pick_first_nonempty(row, keys)
-        for item in _split_multi(raw):
+        for item in _split_multi(raw, split_commas=split_commas):
             counter[item] += 1
     return dict(counter.most_common(top_n))
 
@@ -294,7 +305,7 @@ def metadata_insights_node(state: LiRAState) -> Dict[str, Any]:
         "papers_by_source": dict(source_counts),
         "top_authors": _top_authors(rows),
         "top_institutions": _top_multivalue(rows, ["institutions", "Institutions"], top_n=20),
-        "top_keywords": _top_multivalue(rows, ["keywords", "Keywords"], top_n=30),
+        "top_keywords": _top_multivalue(rows, ["keywords", "Keywords"], top_n=30, split_commas=True),
         "top_journals": dict(journal_counts.most_common(20)),
         "document_types": dict(document_type_counts.most_common()),
         "top_funding_sources": _top_multivalue(rows, ["funding_info", "Funding Info"], top_n=20),
@@ -331,7 +342,7 @@ def metadata_insights_node(state: LiRAState) -> Dict[str, Any]:
     _write_csv(
         "chart_top_keywords.csv",
         ["keyword", "count"],
-        [{"keyword": k, "count": v} for k, v in _top_multivalue(rows, ["keywords", "Keywords"], top_n=50).items()],
+        [{"keyword": k, "count": v} for k, v in _top_multivalue(rows, ["keywords", "Keywords"], top_n=50, split_commas=True).items()],
     )
 
     _write_csv(

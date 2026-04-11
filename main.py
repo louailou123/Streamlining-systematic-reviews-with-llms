@@ -422,7 +422,7 @@ if __name__ == "__main__":
     section("EXECUTING LIRA PIPELINE", C.CYAN)
 
     initial_input = {
-        "topic": "The role of renewable energy in sustainable development",
+        "topic": "How does renewable energy adoption affect sustainable development outcomes in developing countries between 2015 and 2025?",
         "timeframe": "1 month",
         "databases": ["Google Scholar", "arXiv", "OpenAlex", "PubMed", "CrossRef"],
         "messages": [],
