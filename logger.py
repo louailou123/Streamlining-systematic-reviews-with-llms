@@ -297,7 +297,7 @@ STEP2_NODES = {
     "define_criteria", "prepare_search", "search_llm_call",
     "tool_node_search", "save_papers",
 }
-STEP3_NODES = {"deduplicate", "llm_classify"}
+STEP3_NODES = {"deduplicate", "llm_classify", "asreview_screen"}
 TOOL_NODES = {"tool_node", "tool_node_2", "tool_node_search"}
 
 

@@ -426,7 +426,7 @@ def save_papers_node(state: LiRAState) -> Dict[str, Any]:
     try:
         # Write CSV
         with open(csv_filename, mode='w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
+            writer = csv.writer(file, quoting=csv.QUOTE_ALL)
             writer.writerow(["Title", "Year", "Authors", "URL", "DOI", "Source", "Abstract"])
             for p in all_papers:
                 writer.writerow([p["title"], p["year"], p["authors"], p["url"], p["doi"], p["source"], p["abstract"]])

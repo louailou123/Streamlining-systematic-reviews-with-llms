@@ -23,7 +23,8 @@ from agents.agent_2 import (
 )
 from agents.agent_3 import (
     deduplicate_node,
-    llm_classify_node
+    llm_classify_node,
+    asreview_screen_node
 )
 from tools.serpapi_tool import tools
 
@@ -33,8 +34,8 @@ tools_step_1 = [google_scholar_search]
 
 # Bind tools
 llm = get_llm()
-model_step_1 = llm.bind_tools(tools_step_1)
-model_all = llm.bind_tools(tools)
+model_step_1 = llm.bind_tools(tools_step_1,parallel_tool_calls=False)
+model_all = llm.bind_tools(tools,parallel_tool_calls=False)
 
 
 def llm_call_tools_step_1(state: LiRAState):
@@ -145,6 +146,7 @@ def build_lira_graph():
     # Step 3 — Screening
     workflow.add_node("deduplicate", deduplicate_node)
     workflow.add_node("llm_classify", llm_classify_node)
+    workflow.add_node("asreview_screen", asreview_screen_node)
 
     # Edges - Step 1.a
     workflow.add_edge(START, "generate_initial_questions")
@@ -175,9 +177,12 @@ def build_lira_graph():
     # Step 3 edges
     workflow.add_edge("save_papers", "deduplicate")
     workflow.add_edge("deduplicate", "llm_classify")
-    workflow.add_edge("llm_classify", END)
+    workflow.add_edge("llm_classify", "asreview_screen")
+    workflow.add_edge("asreview_screen", END)
 
-    return workflow.compile()
+    # Checkpointer required for interrupt() / human-in-the-loop
+    from langgraph.checkpoint.memory import MemorySaver
+    return workflow.compile(checkpointer=MemorySaver())
 
 
 if __name__ == "__main__":
@@ -362,6 +367,11 @@ if __name__ == "__main__":
             screened_csv = state_update.get("screened_llm_csv", "N/A")
             kv("Output File", screened_csv, C.GREEN)
 
+        elif node_name == "asreview_screen":
+            section("STEP 3.c — ASREVIEW MANUAL SCREENING", C.MAGENTA)
+            asreview_csv = state_update.get("asreview_screened_csv", "N/A")
+            kv("Output File", asreview_csv, C.GREEN)
+
     # ── Initialize logger ──────────────────────────────────────────
     from logger import LiRALogger
     plog = LiRALogger()
@@ -373,8 +383,8 @@ if __name__ == "__main__":
     section("EXECUTING LIRA PIPELINE", C.CYAN)
 
     initial_input = {
-        "topic": "training days effect on muscles",
-        "timeframe": "3 months",
+        "topic": "The role of renewable energy in sustainable development",
+        "timeframe": "1 month",
         "databases": ["Google Scholar", "arXiv", "OpenAlex", "PubMed", "CrossRef"],
         "messages": [],
         "logs": []
@@ -382,11 +392,16 @@ if __name__ == "__main__":
 
     plog.log_initial_input(initial_input)
 
+    # Thread config required for checkpointer (needed by interrupt())
+    thread_config = {"configurable": {"thread_id": f"lira_run_{plog.run_id}"}}
+
     final_state = None
 
     try:
-        for event in graph.stream(initial_input):
+        for event in graph.stream(initial_input, config=thread_config):
             for node_name, state_update in event.items():
+                if node_name == "__interrupt__":
+                    continue
                 plog.node_start(node_name)
 
                 # ── Console output ──
@@ -407,6 +422,40 @@ if __name__ == "__main__":
 
                 if node_name == "generate_final_ranked_questions":
                     final_state = state_update
+
+        # ── Handle interrupt (ASReview human-in-the-loop) ──
+        from langgraph.types import Command
+        graph_state = graph.get_state(thread_config)
+        while graph_state.next:  # pipeline is paused at an interrupt
+            section("PIPELINE PAUSED — HUMAN-IN-THE-LOOP", C.MAGENTA)
+            safe_print(f"{C.YELLOW}The pipeline is waiting for you to complete ASReview screening.{C.RESET}")
+            safe_print(f"{C.YELLOW}Follow the instructions above, then press ENTER to resume...{C.RESET}")
+
+            user_input = input("\nEnter the FULL PATH to your ASReview result CSV file: ").strip()
+
+            # Resume the graph
+            resume_value = user_input if user_input else "asreview_export.csv"
+            section("RESUMING PIPELINE", C.CYAN)
+
+            for event in graph.stream(Command(resume=resume_value), config=thread_config):
+                for node_name, state_update in event.items():
+                    if node_name == "__interrupt__":
+                        continue
+                    plog.node_start(node_name)
+                    section(f"NODE: {node_name}", C.CYAN)
+
+                    if "messages" in state_update:
+                        subheader("Messages", C.BLUE)
+                        for msg in state_update["messages"]:
+                            print_message(msg)
+
+                    if "logs" in state_update and state_update["logs"]:
+                        kv("Latest Log", state_update["logs"][-1], C.GREEN)
+
+                    print_node_summary(node_name, state_update)
+                    plog.node_end(node_name, state_update)
+
+            graph_state = graph.get_state(thread_config)
 
     except Exception as e:
         section("PIPELINE ERROR", C.RED)

@@ -42,8 +42,9 @@ class LiRAState(TypedDict):
     search_metadata: List[Dict]             # per-database: query, count, date
     deduplicated_csv: Optional[str]         # after duplicate removal
     screened_llm_csv: Optional[str]           # optional separate labels file
-    screened_human_csv:Optional[str]# after LLM/human screening
-    augmented_csv: Optional[str]            # enriched dataset (LLM features)
+    screened_human_csv:Optional[str]     # after LLM/human screening
+    asreview_screened_csv: Optional[str]  # after ASReview manual screening
+    initial_dataset_csv: Optional[str]            # enriched dataset (LLM features)
 
     # =========================
     # STEP 4 — INSIGHTS

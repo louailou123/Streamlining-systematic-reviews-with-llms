@@ -1,12 +1,12 @@
 # PRISMA Search Strategy Documentation
 
-**Date Generated:** 2026-04-08
-**Total Unique Papers Retained:** 71
+**Date Generated:** 2026-04-11
+**Total Unique Papers Retained:** 60
 
 | Database | Search Query | Records Found | Retrieval Date |
 |---|---|---|---|
-| Google Scholar | `(muscle hypertrophy OR skeletal muscle hypertrophy OR muscle growth OR hypertrophy) AND (resistance training OR resistance exercise OR strength training) AND (training frequency OR exercise frequency OR training day frequency) AND (dose-response relationship OR muscle adaptation OR muscle development)` | 20 | 2026-04-08 |
-| arXiv | `muscle hypertrophy resistance training` | 15 | 2026-04-08 |
-| Openalex | `muscle hypertrophy resistance training` | 15 | 2026-04-08 |
-| Pubmed | `muscle hypertrophy resistance training` | 15 | 2026-04-08 |
-| Crossref | `(muscle hypertrophy OR skeletal muscle hypertrophy OR muscle growth OR hypertrophy) AND (resistance training OR resistance exercise OR strength training) AND (training frequency OR exercise frequency OR training day frequency) AND (dose-response relationship OR muscle adaptation OR muscle development)` | 15 | 2026-04-08 |
+| Google Scholar | `(Renewable Energy OR Green Policies OR Sustainable Energy) AND (Feed-in Tariffs OR Tax Credits OR Net Metering) AND (Developing Countries OR Comparative Effectiveness OR Policy Interactions)` | 20 | 2026-04-11 |
+| arXiv | `Renewable Energy AND Developing Countries` | 15 | 2026-04-11 |
+| Openalex | `Renewable Energy AND (Green Policies OR Sustainable Energy)` | 4 | 2026-04-11 |
+| Pubmed | `Renewable Energy AND Energy Poverty` | 15 | 2026-04-11 |
+| Crossref | `(Renewable Energy Investments OR Energy Investments) AND (Policy Evaluation OR Energy Governance)` | 15 | 2026-04-11 |

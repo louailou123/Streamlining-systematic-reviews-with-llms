@@ -2,12 +2,15 @@
 Step 3 — Screening Agent Nodes (LangGraph)
   3.a  deduplicate_node    — removes duplicate papers from raw_dataset.csv
   3.b  llm_classify_node   — classifies each paper using the project LLM + state criteria
+  3.c  asreview_screen_node — pauses for human screening in ASReview and generates initial_dataset.csv
 """
 
 import csv
 import re
 import time
-from typing import Dict, Any, List
+import subprocess
+import sys
+from typing import Dict, Any, List, Tuple
 from pathlib import Path
 from difflib import SequenceMatcher
 
@@ -23,42 +26,100 @@ from Prompts.prompts import LLM_SCREENING_PROMPT
 # ═══════════════════════════════════════════════════════════════
 
 def _normalize_title(title: str) -> str:
-    """Lowercase, strip year parens, remove punctuation."""
-    title = re.sub(r'\s*\(.*?\)\s*$', '', title)
-    title = re.sub(r'[^\w\s]', '', title.lower())
-    return ' '.join(title.split())
+    """Lowercase, strip trailing year parens, remove punctuation."""
+    if not title:
+        return ""
+    title = re.sub(r"\s*\(.*?\)\s*$", "", title)
+    title = re.sub(r"[^\w\s]", "", title.lower())
+    return " ".join(title.split())
 
 
 def _normalize_doi(doi: str) -> str:
     """Normalize a DOI string for comparison."""
-    if not doi or doi.strip() in ('', 'N/A'):
-        return ''
+    if not doi or doi.strip() in ("", "N/A", "None"):
+        return ""
     doi = doi.strip().lower()
-    doi = re.sub(r'^https?://doi\.org/', '', doi)
+    doi = re.sub(r"^https?://doi\.org/", "", doi)
     return doi
 
 
 def _titles_similar(t1: str, t2: str, threshold: float = 0.90) -> bool:
+    """Fuzzy title match."""
     return SequenceMatcher(None, t1, t2).ratio() >= threshold
 
 
-def _read_csv(path: str) -> tuple:
+def _read_csv(path: str) -> Tuple[List[str], List[dict]]:
     """Return (fieldnames, rows) from a CSV file."""
-    rows = []
-    with open(path, mode='r', encoding='utf-8') as f:
+    rows: List[dict] = []
+    with open(path, mode="r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
-        fieldnames = list(reader.fieldnames)
+        fieldnames = list(reader.fieldnames or [])
         for row in reader:
             rows.append(row)
     return fieldnames, rows
 
 
-def _write_csv(path: str, fieldnames: list, rows: list):
-    """Write rows to a CSV file."""
-    with open(path, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+def _write_csv(path: str, fieldnames: List[str], rows: List[dict]) -> None:
+    """Write rows to a CSV file with full quoting for robust parsing."""
+    with open(path, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=fieldnames, extrasaction="ignore",
+            quoting=csv.QUOTE_ALL,
+        )
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _pick_first_nonempty(row: dict, keys: List[str]) -> str:
+    """Return first non-empty value from a list of candidate keys."""
+    for key in keys:
+        value = row.get(key, "")
+        if value is not None and str(value).strip():
+            return str(value)
+    return ""
+
+
+def _normalize_binary_label(value: Any) -> str:
+    """
+    Normalize label values like 1, 1.0, '1', '1.0', True into '1'
+    and 0, 0.0, '0', '0.0', False into '0'. Otherwise ''.
+    """
+    if value is None:
+        return ""
+
+    s = str(value).strip().lower()
+    if s in {"1", "1.0", "true", "yes"}:
+        return "1"
+    if s in {"0", "0.0", "false", "no"}:
+        return "0"
+    return ""
+
+
+def build_initial_dataset_from_asreview_export(
+    asreview_export_file: str,
+    output_file: str = "initial_dataset.csv",
+) -> str:
+    """
+    Build initial_dataset.csv from an ASReview export.
+    Keeps only rows where asreview_label == 1.
+    """
+    fieldnames, rows = _read_csv(asreview_export_file)
+
+    if "asreview_label" not in fieldnames:
+        raise ValueError(
+            f"'asreview_label' column not found in {asreview_export_file}. "
+            "Could not generate initial_dataset.csv."
+        )
+
+    kept: List[dict] = []
+    for row in rows:
+        human_label = _normalize_binary_label(row.get("asreview_label", ""))
+        if human_label == "1":
+            kept.append(row)
+
+    _write_csv(output_file, fieldnames, kept)
+    return output_file
+
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -68,7 +129,7 @@ def _write_csv(path: str, fieldnames: list, rows: list):
 def deduplicate_node(state: LiRAState) -> Dict[str, Any]:
     """
     Reads raw_dataset.csv, removes duplicates on DOI (exact) and
-    Title (≥90 % fuzzy match), writes deduplicated_dataset.csv.
+    Title (≥90% fuzzy match), writes deduplicated_dataset.csv.
     """
     input_file = state.get("raw_dataset_csv", "raw_dataset.csv")
     output_file = "deduplicated_dataset.csv"
@@ -81,37 +142,41 @@ def deduplicate_node(state: LiRAState) -> Dict[str, Any]:
     fieldnames, papers = _read_csv(input_file)
     total_before = len(papers)
 
-    # Pass 1 — exact DOI dedup
     seen_dois: set = set()
     doi_dups = 0
     after_doi: List[dict] = []
-    for p in papers:
-        doi = _normalize_doi(p.get('DOI', ''))
+
+    for paper in papers:
+        doi = _normalize_doi(_pick_first_nonempty(paper, ["DOI", "doi"]))
         if doi:
             if doi in seen_dois:
                 doi_dups += 1
                 continue
             seen_dois.add(doi)
-        after_doi.append(p)
+        after_doi.append(paper)
 
-    # Pass 2 — fuzzy title dedup
     seen_titles: List[str] = []
     title_dups = 0
     unique: List[dict] = []
-    for p in after_doi:
-        norm = _normalize_title(p.get('Title', ''))
-        if not norm:
-            unique.append(p)
+
+    for paper in after_doi:
+        title = _pick_first_nonempty(paper, ["Title", "title"])
+        norm_title = _normalize_title(title)
+
+        if not norm_title:
+            unique.append(paper)
             continue
+
         is_dup = False
-        for existing in seen_titles:
-            if _titles_similar(norm, existing):
+        for existing_title in seen_titles:
+            if _titles_similar(norm_title, existing_title):
                 is_dup = True
                 title_dups += 1
                 break
+
         if not is_dup:
-            seen_titles.append(norm)
-            unique.append(p)
+            seen_titles.append(norm_title)
+            unique.append(paper)
 
     total_removed = total_before - len(unique)
     _write_csv(output_file, fieldnames, unique)
@@ -135,12 +200,14 @@ def deduplicate_node(state: LiRAState) -> Dict[str, Any]:
 
 def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
     """
-    For each paper in deduplicated_dataset.csv, calls the project LLM
+    For each paper in deduplicated_dataset.csv, call the project LLM
     with the inclusion/exclusion criteria from state.
-    Uses invoke_structured to parse into ScreeningResult schema.
-    Writes screened_llm_dataset.csv with 'included', 'excluded', and 'justification' columns.
+
+    Writes screened_llm_dataset.csv with:
+      - llm_included
+      - llm_excluded
+      - llm_justification
     """
-    # Resolve input file
     dedup_csv = state.get("deduplicated_csv", "deduplicated_dataset.csv")
     raw_csv = state.get("raw_dataset_csv", "raw_dataset.csv")
     input_file = dedup_csv if Path(dedup_csv).exists() else raw_csv
@@ -151,13 +218,20 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
         logs.append(f"[Screen] ERROR: {input_file} not found — skipping.")
         return {"logs": logs}
 
-    # Format criteria from state (populated by define_criteria_node in Step 2)
     inclusion = state.get("inclusion_criteria", [])
     exclusion = state.get("exclusion_criteria", [])
-    inclusion_str = "\n".join(f"  - {c}" for c in inclusion) if inclusion else "  - Directly related to MADRL in communication networks"
-    exclusion_str = "\n".join(f"  - {c}" for c in exclusion) if exclusion else "  - Not related to deep reinforcement learning or networking"
 
-    # Get the research question from state
+    inclusion_str = (
+        "\n".join(f"  - {c}" for c in inclusion)
+        if inclusion
+        else "  - Directly related to MADRL in communication networks"
+    )
+    exclusion_str = (
+        "\n".join(f"  - {c}" for c in exclusion)
+        if exclusion
+        else "  - Not related to deep reinforcement learning or networking"
+    )
+
     question = ""
     if state.get("final_ranked_questions"):
         question = state["final_ranked_questions"][0].get("question", "")
@@ -165,32 +239,28 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
         question = state.get("reframed_question", state.get("topic", ""))
 
     fieldnames, papers = _read_csv(input_file)
-    new_cols = []
-    for col in ['included', 'excluded', 'justification']:
-        if col not in fieldnames:
-            new_cols.append(col)
-    out_fields = fieldnames + new_cols
+
+    required_cols = ["llm_included", "llm_excluded", "llm_justification"]
+    out_fields = list(fieldnames)
+    for col in required_cols:
+        if col not in out_fields:
+            out_fields.append(col)
 
     llm = get_llm()
-    stats = {'included': 0, 'excluded': 0, 'both': 0}
+    stats = {"included": 0, "excluded": 0, "errors": 0}
     delay = 2.0
+    max_retries = 3
 
     print(f"\n[Screen] Screening {len(papers)} papers from {input_file} ...")
 
     for i, paper in enumerate(papers):
-        title = paper.get('Title', '')
-        abstract = paper.get('Abstract', '')
+        title = _pick_first_nonempty(paper, ["Title", "title"])
+        abstract = _pick_first_nonempty(paper, ["Abstract", "abstract"])
 
-        # Skip papers without an abstract
-        if not abstract or abstract.strip() in ('N/A', ''):
-            paper['included'] = '0'
-            paper['excluded'] = '1'
-            paper['justification'] = 'No abstract available for screening.'
-            stats['excluded'] += 1
-            print(f"  [{i+1}/{len(papers)}] SKIP (no abstract): {title[:60]}...")
-            continue
+        # If no abstract, still send to LLM with title only
+        if not abstract or abstract.strip() in ("N/A", ""):
+            abstract = "(No abstract available — classify based on title only.)"
 
-        # Build prompt from the shared template
         prompt_text = LLM_SCREENING_PROMPT.format(
             title=title,
             abstract=abstract,
@@ -199,37 +269,53 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
             exclusion_criteria=exclusion_str,
         )
 
-        try:
-            result = invoke_structured(llm, prompt_text, ScreeningResult)
-            inc = '1' if result.included == 1 else '0'
-            exc = '1' if result.excluded == 1 else '0'
-            justification = result.justification or 'No justification provided.'
-        except Exception as e:
-            print(f"    Error on paper {i+1}: {e} — defaulting to excluded.")
-            inc = '0'
-            exc = '1'
-            justification = f'Classification error: {e}'
+        inc = "0"
+        exc = "0"
+        justification = ""
 
-        paper['included'] = inc
-        paper['excluded'] = exc
-        paper['justification'] = justification
+        for attempt in range(1, max_retries + 1):
+            try:
+                result = invoke_structured(llm, prompt_text, ScreeningResult)
+                inc = "1" if result.included == 1 else "0"
+                exc = "1" if result.excluded == 1 else "0"
+                justification = result.justification or "No justification provided."
+                break  # success
+            except Exception as e:
+                if attempt < max_retries:
+                    print(f"    Retry {attempt}/{max_retries} for paper {i+1}: {e}")
+                    time.sleep(delay)
+                else:
+                    print(f"    FAILED after {max_retries} attempts for paper {i+1}: {e}")
+                    inc = "0"
+                    exc = "1"
+                    justification = f"Classification failed after {max_retries} retries: {e}"
+                    stats["errors"] += 1
 
-        if inc == '1':
-            stats['included'] += 1
-        if exc == '1':
-            stats['excluded'] += 1
+        paper["llm_included"] = inc
+        paper["llm_excluded"] = exc
+        paper["llm_justification"] = justification
 
-        status = 'INCLUDED' if inc == '1' and exc == '0' else 'EXCLUDED'
+        # Force a binary decision: if both are 0, default to excluded
+        if paper["llm_included"] == "0" and paper["llm_excluded"] == "0":
+            paper["llm_excluded"] = "1"
+            paper["llm_justification"] += " (Auto-excluded: LLM did not make a clear decision.)"
+
+        if paper["llm_included"] == "1":
+            stats["included"] += 1
+        if paper["llm_excluded"] == "1":
+            stats["excluded"] += 1
+
+        status = "INCLUDED" if inc == "1" and exc != "1" else "EXCLUDED"
         print(f"  [{i+1}/{len(papers)}] {status}: {title[:60]}...")
 
-        # Rate-limit
         if i < len(papers) - 1:
             time.sleep(delay)
 
     _write_csv(output_file, out_fields, papers)
 
     msg = (
-        f"[Screen] Done — included:{stats['included']}, excluded:{stats['excluded']} "
+        f"[Screen] Done — LLM included:{stats['included']}, "
+        f"LLM excluded:{stats['excluded']}, errors:{stats['errors']} "
         f"out of {len(papers)} → {output_file}"
     )
     print(msg)
@@ -240,3 +326,196 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
         "logs": logs,
     }
 
+
+# ═══════════════════════════════════════════════════════════════
+# NODE 3.c — ASREVIEW MANUAL SCREENING (HUMAN-IN-THE-LOOP)
+# ═══════════════════════════════════════════════════════════════
+
+def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
+    """
+    ASReview human-in-the-loop screening step.
+
+    Flow:
+      1. Prepare an ASReview-compatible CSV import file.
+      2. Auto-launch ASReview LAB in the browser.
+      3. Pause (interrupt) — user screens papers in ASReview.
+      4. On resume: user provides path to the exported ASReview result CSV.
+      5. Build initial_dataset.csv keeping only rows where asreview_label == 1.
+    """
+    from langgraph.types import interrupt
+    import webbrowser
+
+    logs = list(state.get("logs", []))
+
+    # ── 1. Find the best available input CSV ──
+    llm_csv = state.get("screened_llm_csv", "screened_llm_dataset.csv")
+    dedup_csv = state.get("deduplicated_csv", "deduplicated_dataset.csv")
+    raw_csv = state.get("raw_dataset_csv", "raw_dataset.csv")
+
+    input_file = None
+    for candidate in [llm_csv, dedup_csv, raw_csv]:
+        if candidate and Path(candidate).exists():
+            input_file = candidate
+            break
+
+    if not input_file:
+        logs.append("[ASReview] ERROR: No input CSV found — skipping.")
+        return {"logs": logs}
+
+    # ── 2. Build ASReview-compatible import CSV ──
+    asreview_import = "asreview_import.csv"
+    _, papers = _read_csv(input_file)
+
+    asreview_rows: List[dict] = []
+    for paper in papers:
+        title = _pick_first_nonempty(paper, ["Title", "title"])
+        abstract = _pick_first_nonempty(paper, ["Abstract", "abstract"])
+        doi = _pick_first_nonempty(paper, ["DOI", "doi"])
+
+        llm_included = _normalize_binary_label(paper.get("llm_included", ""))
+        llm_excluded = _normalize_binary_label(paper.get("llm_excluded", ""))
+
+        if llm_included == "1" and llm_excluded != "1":
+            included_label = "1"
+        elif llm_excluded == "1":
+            included_label = "0"
+        else:
+            included_label = ""
+
+        row = {
+            "title": title,
+            "abstract": abstract,
+            "doi": doi,
+            "included_label": included_label,
+            "llm_included": llm_included,
+            "llm_excluded": llm_excluded,
+            "llm_justification": paper.get("llm_justification", ""),
+        }
+        asreview_rows.append(row)
+
+    asreview_fields = [
+        "title", "abstract", "doi", "included_label",
+        "llm_included", "llm_excluded", "llm_justification",
+    ]
+    _write_csv(asreview_import, asreview_fields, asreview_rows)
+
+    total = len(asreview_rows)
+    included_count = sum(1 for p in asreview_rows if p.get("included_label") == "1")
+    excluded_count = sum(1 for p in asreview_rows if p.get("included_label") == "0")
+
+    msg = (
+        f"[ASReview] Prepared {asreview_import} with {total} papers "
+        f"(LLM prior labels: {included_count} included, {excluded_count} excluded)"
+    )
+    print(msg)
+    logs.append(msg)
+
+    # ── 3. Auto-launch ASReview LAB ──
+    print("[ASReview] Starting ASReview LAB...")
+    try:
+        subprocess.Popen(
+            [sys.executable, "-m", "asreview", "lab"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(3)
+        webbrowser.open("http://localhost:5000")
+        logs.append("[ASReview] ASReview LAB launched at http://localhost:5000")
+    except Exception as e:
+        warn = f"[ASReview] WARNING: Could not auto-start ASReview LAB: {e}"
+        print(warn)
+        logs.append(warn)
+
+    # ── 4. Print instructions and pause (interrupt) ──
+    import_path = str(Path(asreview_import).resolve())
+    instructions = (
+        f"\n{'='*72}\n"
+        f"  HUMAN-IN-THE-LOOP: ASReview Manual Screening\n"
+        f"{'='*72}\n\n"
+        f"  ASReview LAB has been opened automatically.\n\n"
+        f"  Steps:\n"
+        f"    1. In ASReview LAB, create a new project and import:\n"
+        f"         {import_path}\n"
+        f"    2. Screen the papers using ASReview's active learning.\n"
+        f"    3. When finished, download/export the result as a CSV file.\n"
+        f"    4. Come back here and provide the FULL PATH to that CSV file.\n\n"
+        f"  The exported CSV must contain an 'asreview_label' column.\n"
+        f"  The pipeline will keep only papers where asreview_label == 1\n"
+        f"  to create initial_dataset.csv.\n\n"
+        f"  Papers to screen: {total}\n"
+        f"  LLM prior included: {included_count}\n"
+        f"  LLM prior excluded: {excluded_count}\n"
+        f"{'='*72}\n"
+    )
+    print(instructions)
+
+    # Interrupt — pipeline pauses here until user resumes
+    user_response = interrupt(
+        {
+            "message": (
+                "ASReview screening required. Screen papers in ASReview LAB, "
+                "export the result CSV, then provide the file path to resume."
+            ),
+            "asreview_import_file": import_path,
+            "total_papers": total,
+            "llm_prior_included": included_count,
+            "llm_prior_excluded": excluded_count,
+        }
+    )
+
+    # ── 5. Process the user-provided ASReview result CSV ──
+    export_path = None
+    if isinstance(user_response, dict):
+        export_path = user_response.get("output_file") or user_response.get("export_file")
+    elif isinstance(user_response, str):
+        export_path = user_response.strip()
+
+    if not export_path:
+        msg = "[ASReview] ERROR: No file path was provided."
+        print(msg)
+        logs.append(msg)
+        return {"logs": logs}
+
+    export_path = str(export_path).strip().strip('"').strip("'")
+
+    if not Path(export_path).exists():
+        msg = f"[ASReview] ERROR: File not found: {export_path}"
+        print(msg)
+        logs.append(msg)
+        return {"logs": logs}
+
+    try:
+        # Save a local copy of the user-provided export
+        asreview_export_local = "asreview_export.csv"
+        initial_dataset_file = "initial_dataset.csv"
+
+        export_fields, export_rows = _read_csv(export_path)
+        _write_csv(asreview_export_local, export_fields, export_rows)
+
+        initial_dataset_file = build_initial_dataset_from_asreview_export(
+            asreview_export_local,
+            initial_dataset_file,
+        )
+
+        _, initial_rows = _read_csv(initial_dataset_file)
+
+        msg = (
+            f"[ASReview] Loaded export from {export_path}. "
+            f"Generated {initial_dataset_file} with {len(initial_rows)} included papers "
+            f"(asreview_label == 1)."
+        )
+        print(msg)
+        logs.append(msg)
+
+        return {
+            "screened_human_csv": asreview_export_local,
+            "asreview_screened_csv": asreview_export_local,
+            "initial_dataset_csv": initial_dataset_file,
+            "logs": logs,
+        }
+
+    except Exception as e:
+        msg = f"[ASReview] ERROR processing export file: {e}"
+        print(msg)
+        logs.append(msg)
+        return {"logs": logs}

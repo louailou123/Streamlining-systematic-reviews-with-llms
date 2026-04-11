@@ -143,6 +143,7 @@ Ensure that:
 - Keywords are suitable for querying academic databases (e.g., IEEE Xplore, Scopus, ACM Digital Library)
 - Redundant or overly generic terms are avoided
 - Terms are grouped logically where appropriate
+just 20 keywords
 """
 
 
@@ -240,7 +241,7 @@ For each paper, find its Title, Year, URL, Abstract, and Database Source.
 If a specific field is entirely missing, use "N/A".
 
 It is CRITICAL that you do not skip any papers. You must extract all of them no matter how long the list is.
-
+just 20 papers
 Search Results to extract from:
 {search_results}
 """
@@ -298,10 +299,16 @@ LLM_SCREENING_PROMPT = """You are an expert researcher and systematic reviews sp
 {exclusion_criteria}
 
 **Task:**
-Carefully analyze the title and abstract of this paper.
+You MUST classify this paper. Do NOT skip or leave any field empty.
 - Evaluate whether it meets any of the **inclusion criteria** (set included = 1 if yes, 0 if no).
 - Evaluate whether it matches any of the **exclusion criteria** (set excluded = 1 if yes, 0 if no).
-- Provide a brief justification explaining which specific criteria the paper matched and why."""
+- If the abstract is unavailable, base your decision on the title alone.
+- Provide a brief justification explaining which specific criteria the paper matched and why.
+
+CRITICAL RULE: You MUST set EXACTLY ONE of included or excluded to 1.
+- If the paper is relevant → included=1, excluded=0
+- If the paper is NOT relevant → included=0, excluded=1
+- NEVER return included=0 AND excluded=0. You must make a decision."""
 
 
 
