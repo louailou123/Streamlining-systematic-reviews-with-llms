@@ -82,14 +82,63 @@ class ScreeningResult(BaseModel):
 # STEP 4 — INSIGHTS
 # =========================
 
-class MetadataInsights(BaseModel):
-    topics: List[str]
-    trends: List[str]
+class MetadataInsightsSummary(BaseModel):
+    total_papers: int = Field(description="Number of papers in initial_dataset")
+    doi_coverage_pct: float = Field(description="Percentage of papers with DOI")
+    abstract_coverage_pct: float = Field(description="Percentage of papers with abstracts")
+    funding_info_coverage_pct: float = Field(description="Percentage of papers with funding information")
+    papers_by_year: Dict[str, int] = Field(description="Counts of papers by year")
+    papers_by_source: Dict[str, int] = Field(description="Counts by source/database")
+    top_authors: Dict[str, int] = Field(description="Top authors")
+    top_institutions: Dict[str, int] = Field(description="Top institutions")
+    top_keywords: Dict[str, int] = Field(description="Top keywords")
+    top_journals: Dict[str, int] = Field(description="Top journals")
+    document_types: Dict[str, int] = Field(description="Distribution of document types")
+    top_funding_sources: Dict[str, int] = Field(description="Top funding sources")
+    citation_statistics: Dict[str, float] = Field(description="Citation count summary statistics")
+    collaboration_patterns: Dict[str, float] = Field(description="Co-authorship and co-institution patterns")
 
-class ThematicExtraction(BaseModel):
-    method: str
-    network_type: str
-    challenge: str
+
+class ThematicPaperExtraction(BaseModel):
+    row_id: str
+    countries_of_study: List[str] = Field(default_factory=list)
+    application_domain: str = Field(default="Unknown")
+    algorithm_families: List[str] = Field(default_factory=list)
+    baseline_methods: List[str] = Field(default_factory=list)
+    challenges_addressed: List[str] = Field(default_factory=list)
+    evaluation_metrics: List[str] = Field(default_factory=list)
+    experimental_setting: str = Field(default="Unknown")
+    dataset_simulator_testbed: List[str] = Field(default_factory=list)
+    key_findings: List[str] = Field(default_factory=list)
+    limitations: List[str] = Field(default_factory=list)
+    evidence_snippets: List[str] = Field(default_factory=list)
+    extraction_confidence: float = Field(default=0.5)
+    needs_review: bool = Field(default=False)
+    review_reason: str = Field(default="")
+
+
+class ThematicSummary(BaseModel):
+    total_papers: int
+    countries_distribution: Dict[str, int]
+    application_domains: Dict[str, int]
+    algorithm_families: Dict[str, int]
+    challenges_addressed: Dict[str, int]
+    evaluation_metrics: Dict[str, int]
+    experimental_settings: Dict[str, int]
+
+
+class Step4AnalysisReport(BaseModel):
+    total_papers: int
+    average_extraction_confidence: float
+    review_needed_count: int
+    top_countries: Dict[str, int]
+    top_application_domains: Dict[str, int]
+    top_network_types: Dict[str, int]
+    top_algorithm_families: Dict[str, int]
+    top_challenges: Dict[str, int]
+    top_metrics: Dict[str, int]
+    top_experimental_settings: Dict[str, int]
+
 
 # =========================
 # STEP 5 — DRAFTING

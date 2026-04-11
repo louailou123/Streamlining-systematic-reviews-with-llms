@@ -17,7 +17,6 @@ The questions should:
 Ensure diversity in perspective (e.g., performance, scalability, methodology, application).
 """
 
-
 PROMPT_2_FRAMEWORK_SELECTION = """
 You are an expert in research methodology.
 
@@ -32,7 +31,6 @@ Explain your choice briefly by considering:
 - The type of problem being studied
 - Suitability for structuring a systematic literature review question
 """
-
 
 PROMPT_3_FRAMEWORK_APPLICATION = """
 You are an expert in systematic literature reviews.
@@ -52,7 +50,6 @@ Respect the structure of the selected framework:
 Use precise and domain-specific wording.
 """
 
-
 PROMPT_4_FEASIBILITY_SEARCH = """
 You are evaluating the feasibility of conducting a systematic literature review.
 
@@ -71,9 +68,8 @@ Based on the research findings, provide a structured feasibility assessment.
 Research question: {question}
 Timeframe: {timeframe}
 
-IMPORTANT: Do not invent exact publication counts (e.g., "734 papers"). Give broad estimates based ONLY on what you retrieved from the tools (e.g., "100+", "Hundreds"). Explicitly state your uncertainty if the complete number is hidden or unclear due to tool truncations.
+IMPORTANT: Do not invent exact publication counts (e.g., \"734 papers\"). Give broad estimates based ONLY on what you retrieved from the tools (e.g., \"100+\", \"Hundreds\"). Explicitly state your uncertainty if the complete number is hidden or unclear due to tool truncations.
 """
-
 
 PROMPT_5_ORIGINALITY_SURVEYS_SEARCH = """
 You are assessing the originality of a research topic.
@@ -95,7 +91,6 @@ Research question: {question}
 Provide clear and thoughtful analysis.
 """
 
-
 PROMPT_6_ORIGINALITY_RANKED = """
 You are an expert in identifying novel research directions.
 
@@ -116,14 +111,10 @@ Generate three research questions that:
 Rank them by novelty, feasibility, and potential impact.
 """
 
-
 # =========================================
 # STEP 2 — SEARCH STRATEGY PROMPTS
 # =========================================
 
-# -----------------------------------------
-# KEYWORD EXTRACTION
-# -----------------------------------------
 KEYWORD_EXTRACTION_PROMPT = """
 You are an expert in academic research and systematic literature reviews.
 
@@ -146,10 +137,6 @@ Ensure that:
 just 20 keywords
 """
 
-
-# -----------------------------------------
-# QUERY BUILDER
-# -----------------------------------------
 QUERY_BUILDER_PROMPT = """
 You are an expert in constructing advanced academic search queries for systematic reviews.
 
@@ -177,79 +164,17 @@ Requirements:
 Respond with EXACTLY this JSON structure:
 
 {{
-  "query": {{
-    "Database Name 1": "query string",
-    "Database Name 2": "query string"
+  \"query\": {{
+    \"Database Name 1\": \"query string\",
+    \"Database Name 2\": \"query string\"
   }}
 }}
 
 Make sure you include exactly the databases listed above.
-DO NOT omit the top-level "query" field.
+DO NOT omit the top-level \"query\" field.
 DO NOT return a bare dictionary.
 """
 
-
-# -----------------------------------------
-# DATABASE SELECTION
-# -----------------------------------------
-DATABASE_SELECTION_PROMPT = """
-You are an expert in academic publishing and research methodologies.
-
-Given the following research topic:
-
-{topic}
-
-Identify the most relevant academic databases for conducting a systematic literature review, focusing on **Free & Open Access** sources.
-
-Recommended sources to prioritize:
-1. **Google Scholar**: Broad coverage across all publishers (ACM, IEEE, Springer).
-2. **arXiv**: 100% free papers, strong in AI, RL, and Networking.
-3. **DOAJ (Directory of Open Access Journals)**: Peer-reviewed open-access journals.
-4. **CORE**: Aggregates millions of free papers from repositories and journals.
-5. **Semantic Scholar**: Smart search with influential paper highlights.
-"""
-
-EXECUTE_SEARCH_PROMPT = """
-You are an automated research assistant. Your task is to execute the following search queries across their respective databases:
-
-{queries}
-
-### Instructions:
-1. Use the provided tools (google_scholar_search, arxiv_search, openalex_search, pubmed_search, crossref_search) to perform the searches.
-2. If a specific tool for a database (like DOAJ or CORE) is not available, use Google Scholar search to capture papers from those repositories.
-3. For arxiv_search, openalex_search, pubmed_search, and crossref_search you MUST use SHORT queries (2-5 keywords, NO boolean operators, NO parentheses). But make them SPECIFIC and targeted, not generic.
-   - BAD (too generic): "deep learning breast cancer"
-   - BAD (too long): "(deep learning OR machine learning) AND (breast cancer OR mammography) AND (sensitivity OR specificity)"
-   - GOOD (specific + short): "mammography CNN diagnostic accuracy"
-   - GOOD (specific + short): "explainable AI breast cancer detection"
-4. For google_scholar_search only, you may use the full boolean query.
-5. ALWAYS call openalex_search and pubmed_search — they provide the best full abstracts.
-6. CRITICAL: Make at most 4 tool calls per round. You can make more calls in the next round.
-7. REFINE STRATEGY: Analyze the volume and relevance of the returned results. 
-   - If a query returns 0 results (too few), immediately formulate a broader, simpler query and search again using the tools in the next step.
-   - If a query returns completely irrelevant/generic results (too many), formulate a stricter query using more precise keywords and search again.
-8. Validate the results against the defined Inclusion/Exclusion criteria internally before deciding if you've found enough good papers.
-9. Summarize the initial findings and the volume of results once you are satisfied.
-"""
-
-EXTRACT_PAPERS_PROMPT = """
-You are a fastidious data extraction assistant.
-Extract EVERY SINGLE academic paper mentioned in the following unstructured search results text.
-DO NOT summarize or group them. You must create a distinct entry for each paper you find.
-
-For each paper, find its Title, Year, URL, Abstract, and Database Source.
-If a specific field is entirely missing, use "N/A".
-
-It is CRITICAL that you do not skip any papers. You must extract all of them no matter how long the list is.
-just 20 papers
-Search Results to extract from:
-{search_results}
-"""
-
-
-# -----------------------------------------
-# INCLUSION / EXCLUSION CRITERIA
-# -----------------------------------------
 CRITERIA_PROMPT = """
 You are an expert in systematic literature reviews following rigorous academic standards.
 
@@ -310,26 +235,18 @@ CRITICAL RULE: You MUST set EXACTLY ONE of included or excluded to 1.
 - If the paper is NOT relevant → included=0, excluded=1
 - NEVER return included=0 AND excluded=0. You must make a decision."""
 
-
-
 # =========================
-# STEP 4 — DATA EXTRACTION
+# STEP 4 — AUTOMATIC EXTRACTION OF INSIGHTS
 # =========================
 
-METADATA_SUMMARY_PROMPT = """
-Analyze the following metadata collected from selected papers:
+STEP4_THEMATIC_EXTRACTION_PROMPT = """
+You are an expert literature-review analyst extracting structured thematic information from academic papers.
 
-{data}
+Research question:
+{research_question}
 
-Identify:
-- Main research themes
-- Common methods used
-- Emerging trends or patterns
-"""
-
-
-THEMATIC_EXTRACTION_PROMPT = """
-Analyze the following paper:
+Paper row ID:
+{row_id}
 
 Title:
 {title}
@@ -337,68 +254,31 @@ Title:
 Abstract:
 {abstract}
 
-Identify:
-- The main method used
-- The type of network or system studied
-- The primary challenge addressed
-- The key contribution
-"""
+Your task is to extract topic-agnostic thematic metadata that can support downstream analysis for ANY research domain.
 
+Rules:
+- Use ONLY the title and abstract provided.
+- If a field is not supported by the title/abstract, return an empty list or "Unknown".
+- Keep confidence low when the evidence is weak.
+- Countries must be extracted only if explicitly stated or strongly inferable from the text. Do not guess.
+- Evidence snippets must be short phrases copied or tightly paraphrased from the title/abstract.
+- The output must be valid JSON matching the schema exactly.
 
-# =========================
-# STEP 5 — WRITING
-# =========================
+Field guidance:
+- countries_of_study: country or countries where the study was conducted
+- application_domain: the main application/problem area of the paper
+- algorithm_families: method families, model families, or named technical approaches central to the paper
+- baseline_methods: methods used for comparison
+- challenges_addressed: core problems tackled by the study
+- evaluation_metrics: explicit evaluation criteria or metrics
+- experimental_setting: one short label such as simulation, experiment, case study, survey, benchmark, theoretical, real-world deployment, or Unknown
+- dataset_simulator_testbed: named datasets, simulators, testbeds, benchmarks, or corpora
+- key_findings: short factual findings supported by the abstract
+- limitations: explicit or clearly signaled limitations only
+- evidence_snippets: brief evidence snippets supporting the extraction
+- extraction_confidence: number between 0 and 1
+- needs_review: true if the abstract is too weak/ambiguous for reliable extraction
+- review_reason: short reason if needs_review is true
 
-OUTLINE_PROMPT = """
-Create a clear and logical outline for a systematic literature review based on:
-
-{question}
-
-The structure should follow academic standards and ensure a coherent flow.
-"""
-
-
-SECTION_WRITING_PROMPT = """
-Write a section of a literature review.
-
-Section:
-{section}
-
-Context:
-{insights}
-
-Requirements:
-- Use a formal academic tone
-- Base the content on the provided insights
-- Avoid unsupported claims or fabricated references
-- Ensure clarity and coherence
-"""
-
-
-# =========================
-# STEP 6 — SYNTHESIS
-# =========================
-
-SYNTHESIS_PROMPT = """
-Combine the following sections into a coherent and well-structured literature review:
-
-{sections}
-
-Ensure:
-- Logical flow between sections
-- No redundancy
-- Consistent academic tone
-"""
-
-
-GAP_IDENTIFICATION_PROMPT = """
-Based on the following insights:
-
-{insights}
-
-Identify:
-- Key research gaps
-- Promising directions for future work
-
-Provide clear and thoughtful analysis.
+Return ONLY valid JSON.
 """

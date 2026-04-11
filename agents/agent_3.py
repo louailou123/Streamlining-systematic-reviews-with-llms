@@ -51,7 +51,7 @@ def _titles_similar(t1: str, t2: str, threshold: float = 0.90) -> bool:
 def _read_csv(path: str) -> Tuple[List[str], List[dict]]:
     """Return (fieldnames, rows) from a CSV file."""
     rows: List[dict] = []
-    with open(path, mode="r", encoding="utf-8", newline="") as f:
+    with open(path, mode="r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames or [])
         for row in reader:
@@ -63,7 +63,9 @@ def _write_csv(path: str, fieldnames: List[str], rows: List[dict]) -> None:
     """Write rows to a CSV file with full quoting for robust parsing."""
     with open(path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
-            f, fieldnames=fieldnames, extrasaction="ignore",
+            f,
+            fieldnames=fieldnames,
+            extrasaction="ignore",
             quoting=csv.QUOTE_ALL,
         )
         writer.writeheader()
@@ -75,7 +77,7 @@ def _pick_first_nonempty(row: dict, keys: List[str]) -> str:
     for key in keys:
         value = row.get(key, "")
         if value is not None and str(value).strip():
-            return str(value)
+            return str(value).strip()
     return ""
 
 
@@ -95,31 +97,151 @@ def _normalize_binary_label(value: Any) -> str:
     return ""
 
 
+def _is_real_value(value: Any) -> bool:
+    """True only for values worth keeping in exported CSVs."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    if not s:
+        return False
+    if s.lower() in {"n/a", "none", "null", "nan", "unknown"}:
+        return False
+    return True
+
+
+def _clean_row_keep_real_values(row: dict) -> dict:
+    """Keep only keys with real values."""
+    cleaned = {}
+    for k, v in row.items():
+        if _is_real_value(v):
+            cleaned[k] = str(v).strip()
+    return cleaned
+
+
+def _collect_existing_headers(rows: List[dict], preferred_order: List[str] | None = None) -> List[str]:
+    """Build headers only from fields that truly exist."""
+    preferred_order = preferred_order or []
+    seen = set()
+    headers: List[str] = []
+
+    for key in preferred_order:
+        for row in rows:
+            if key in row and _is_real_value(row[key]):
+                if key not in seen:
+                    seen.add(key)
+                    headers.append(key)
+                break
+
+    for row in rows:
+        for key, value in row.items():
+            if key not in seen and _is_real_value(value):
+                seen.add(key)
+                headers.append(key)
+
+    return headers
+
+
+def _normalize_match_key(title: str, doi: str) -> str:
+    """Stable key for matching ASReview rows back to richer source rows."""
+    clean_title = _normalize_title(title or "")
+    clean_doi = _normalize_doi(doi or "")
+    return f"{clean_doi}||{clean_title}"
+
+
+def _pick_best_rich_source(state: LiRAState) -> str:
+    """
+    Prefer the richest available dataset as the source for final initial_dataset.csv,
+    so we preserve added headers like journal, keywords, institutions, etc.
+    """
+    candidates = [
+        state.get("screened_llm_csv", ""),
+        state.get("deduplicated_csv", ""),
+        state.get("raw_dataset_csv", ""),
+        "screened_llm_dataset.csv",
+        "deduplicated_dataset.csv",
+        "raw_dataset.csv",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return candidate
+    return ""
+
+
 def build_initial_dataset_from_asreview_export(
     asreview_export_file: str,
+    rich_source_file: str,
     output_file: str = "initial_dataset.csv",
 ) -> str:
     """
-    Build initial_dataset.csv from an ASReview export.
-    Keeps only rows where asreview_label == 1.
-    """
-    fieldnames, rows = _read_csv(asreview_export_file)
+    Build initial_dataset.csv using ASReview inclusion decisions, but preserve
+    the richer headers from the pre-ASReview dataset.
 
-    if "asreview_label" not in fieldnames:
+    - ASReview export decides which papers are kept (asreview_label == 1)
+    - rich_source_file provides the full metadata columns
+    """
+    export_fields, export_rows = _read_csv(asreview_export_file)
+
+    if "asreview_label" not in export_fields:
         raise ValueError(
             f"'asreview_label' column not found in {asreview_export_file}. "
             "Could not generate initial_dataset.csv."
         )
 
-    kept: List[dict] = []
-    for row in rows:
+    if not rich_source_file or not Path(rich_source_file).exists():
+        raise ValueError(
+            f"Rich source file not found: {rich_source_file}. "
+            "Could not preserve enriched headers in initial_dataset.csv."
+        )
+
+    rich_fields, rich_rows = _read_csv(rich_source_file)
+
+    include_map = {}
+    for row in export_rows:
         human_label = _normalize_binary_label(row.get("asreview_label", ""))
         if human_label == "1":
+            key = _normalize_match_key(
+                _pick_first_nonempty(row, ["title", "Title"]),
+                _pick_first_nonempty(row, ["doi", "DOI"]),
+            )
+            include_map[key] = True
+
+    kept: List[dict] = []
+    seen_keys = set()
+
+    for row in rich_rows:
+        key = _normalize_match_key(
+            _pick_first_nonempty(row, ["title", "Title"]),
+            _pick_first_nonempty(row, ["doi", "DOI"]),
+        )
+        if include_map.get(key):
             kept.append(row)
+            seen_keys.add(key)
 
-    _write_csv(output_file, fieldnames, kept)
+    unmatched_titles = set()
+    for row in export_rows:
+        human_label = _normalize_binary_label(row.get("asreview_label", ""))
+        if human_label == "1":
+            key = _normalize_match_key(
+                _pick_first_nonempty(row, ["title", "Title"]),
+                _pick_first_nonempty(row, ["doi", "DOI"]),
+            )
+            if key not in seen_keys:
+                unmatched_titles.add(_normalize_title(_pick_first_nonempty(row, ["title", "Title"])))
+
+    if unmatched_titles:
+        for row in rich_rows:
+            norm_title = _normalize_title(_pick_first_nonempty(row, ["title", "Title"]))
+            if norm_title in unmatched_titles:
+                key = _normalize_match_key(
+                    _pick_first_nonempty(row, ["title", "Title"]),
+                    _pick_first_nonempty(row, ["doi", "DOI"]),
+                )
+                if key not in seen_keys:
+                    kept.append(row)
+                    seen_keys.add(key)
+
+    _write_csv(output_file, rich_fields, kept)
     return output_file
-
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -224,12 +346,12 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
     inclusion_str = (
         "\n".join(f"  - {c}" for c in inclusion)
         if inclusion
-        else "  - Directly related to MADRL in communication networks"
+        else "  - Directly related to the research question"
     )
     exclusion_str = (
         "\n".join(f"  - {c}" for c in exclusion)
         if exclusion
-        else "  - Not related to deep reinforcement learning or networking"
+        else "  - Not related to the research question"
     )
 
     question = ""
@@ -257,7 +379,6 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
         title = _pick_first_nonempty(paper, ["Title", "title"])
         abstract = _pick_first_nonempty(paper, ["Abstract", "abstract"])
 
-        # If no abstract, still send to LLM with title only
         if not abstract or abstract.strip() in ("N/A", ""):
             abstract = "(No abstract available — classify based on title only.)"
 
@@ -279,7 +400,7 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
                 inc = "1" if result.included == 1 else "0"
                 exc = "1" if result.excluded == 1 else "0"
                 justification = result.justification or "No justification provided."
-                break  # success
+                break
             except Exception as e:
                 if attempt < max_retries:
                     print(f"    Retry {attempt}/{max_retries} for paper {i+1}: {e}")
@@ -295,7 +416,6 @@ def llm_classify_node(state: LiRAState) -> Dict[str, Any]:
         paper["llm_excluded"] = exc
         paper["llm_justification"] = justification
 
-        # Force a binary decision: if both are 0, default to excluded
         if paper["llm_included"] == "0" and paper["llm_excluded"] == "0":
             paper["llm_excluded"] = "1"
             paper["llm_justification"] += " (Auto-excluded: LLM did not make a clear decision.)"
@@ -340,14 +460,15 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
       2. Auto-launch ASReview LAB in the browser.
       3. Pause (interrupt) — user screens papers in ASReview.
       4. On resume: user provides path to the exported ASReview result CSV.
-      5. Build initial_dataset.csv keeping only rows where asreview_label == 1.
+      5. Build initial_dataset.csv keeping only rows where asreview_label == 1,
+         while preserving richer metadata headers from the source dataset.
     """
     from langgraph.types import interrupt
     import webbrowser
 
     logs = list(state.get("logs", []))
 
-    # ── 1. Find the best available input CSV ──
+    # 1. Find the best available input CSV
     llm_csv = state.get("screened_llm_csv", "screened_llm_dataset.csv")
     dedup_csv = state.get("deduplicated_csv", "deduplicated_dataset.csv")
     raw_csv = state.get("raw_dataset_csv", "raw_dataset.csv")
@@ -362,11 +483,12 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
         logs.append("[ASReview] ERROR: No input CSV found — skipping.")
         return {"logs": logs}
 
-    # ── 2. Build ASReview-compatible import CSV ──
+    # 2. Build ASReview-compatible import CSV, preserving rich metadata fields
     asreview_import = "asreview_import.csv"
     _, papers = _read_csv(input_file)
 
     asreview_rows: List[dict] = []
+
     for paper in papers:
         title = _pick_first_nonempty(paper, ["Title", "title"])
         abstract = _pick_first_nonempty(paper, ["Abstract", "abstract"])
@@ -382,21 +504,56 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
         else:
             included_label = ""
 
-        row = {
-            "title": title,
-            "abstract": abstract,
-            "doi": doi,
-            "included_label": included_label,
-            "llm_included": llm_included,
-            "llm_excluded": llm_excluded,
-            "llm_justification": paper.get("llm_justification", ""),
-        }
+        # Start from richer source row
+        row = _clean_row_keep_real_values(dict(paper))
+
+        # Canonical ASReview fields
+        row["title"] = title
+        row["abstract"] = abstract
+        row["doi"] = doi
+
+        # Screening helper columns
+        if _is_real_value(included_label):
+            row["included_label"] = included_label
+        if _is_real_value(llm_included):
+            row["llm_included"] = llm_included
+        if _is_real_value(llm_excluded):
+            row["llm_excluded"] = llm_excluded
+        if _is_real_value(paper.get("llm_justification", "")):
+            row["llm_justification"] = str(paper.get("llm_justification")).strip()
+
+        # Remove duplicate alternate-case keys
+        for redundant_key in ["Title", "Abstract", "DOI"]:
+            row.pop(redundant_key, None)
+
         asreview_rows.append(row)
 
-    asreview_fields = [
-        "title", "abstract", "doi", "included_label",
-        "llm_included", "llm_excluded", "llm_justification",
+    preferred_asreview_fields = [
+        "title",
+        "abstract",
+        "doi",
+        "included_label",
+        "llm_included",
+        "llm_excluded",
+        "llm_justification",
+        "year",
+        "authors",
+        "source",
+        "journal",
+        "publisher",
+        "publication_date",
+        "document_type",
+        "keywords",
+        "institutions",
+        "countries",
+        "citation_count",
+        "language",
+        "pmid",
+        "funding_info",
+        "url",
     ]
+
+    asreview_fields = _collect_existing_headers(asreview_rows, preferred_asreview_fields)
     _write_csv(asreview_import, asreview_fields, asreview_rows)
 
     total = len(asreview_rows)
@@ -405,12 +562,13 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
 
     msg = (
         f"[ASReview] Prepared {asreview_import} with {total} papers "
+        f"and {len(asreview_fields)} real columns "
         f"(LLM prior labels: {included_count} included, {excluded_count} excluded)"
     )
     print(msg)
     logs.append(msg)
 
-    # ── 3. Auto-launch ASReview LAB ──
+    # 3. Auto-launch ASReview LAB
     print("[ASReview] Starting ASReview LAB...")
     try:
         subprocess.Popen(
@@ -426,7 +584,7 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
         print(warn)
         logs.append(warn)
 
-    # ── 4. Print instructions and pause (interrupt) ──
+    # 4. Print instructions and pause
     import_path = str(Path(asreview_import).resolve())
     instructions = (
         f"\n{'='*72}\n"
@@ -449,7 +607,6 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
     )
     print(instructions)
 
-    # Interrupt — pipeline pauses here until user resumes
     user_response = interrupt(
         {
             "message": (
@@ -463,7 +620,7 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
         }
     )
 
-    # ── 5. Process the user-provided ASReview result CSV ──
+    # 5. Process ASReview result CSV and preserve rich headers
     export_path = None
     if isinstance(user_response, dict):
         export_path = user_response.get("output_file") or user_response.get("export_file")
@@ -485,16 +642,18 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
         return {"logs": logs}
 
     try:
-        # Save a local copy of the user-provided export
         asreview_export_local = "asreview_export.csv"
         initial_dataset_file = "initial_dataset.csv"
 
         export_fields, export_rows = _read_csv(export_path)
         _write_csv(asreview_export_local, export_fields, export_rows)
 
+        rich_source_file = _pick_best_rich_source(state)
+
         initial_dataset_file = build_initial_dataset_from_asreview_export(
-            asreview_export_local,
-            initial_dataset_file,
+            asreview_export_file=asreview_export_local,
+            rich_source_file=rich_source_file,
+            output_file=initial_dataset_file,
         )
 
         _, initial_rows = _read_csv(initial_dataset_file)
@@ -502,7 +661,7 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
         msg = (
             f"[ASReview] Loaded export from {export_path}. "
             f"Generated {initial_dataset_file} with {len(initial_rows)} included papers "
-            f"(asreview_label == 1)."
+            f"(asreview_label == 1), preserving enriched headers from {rich_source_file}."
         )
         print(msg)
         logs.append(msg)

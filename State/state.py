@@ -46,11 +46,17 @@ class LiRAState(TypedDict):
     asreview_screened_csv: Optional[str]  # after ASReview manual screening
     initial_dataset_csv: Optional[str]            # enriched dataset (LLM features)
 
-    # =========================
+  # =========================
     # STEP 4 — INSIGHTS
     # =========================
-    metadata_insights: Dict                 # stats (authors, years, trends)
-    thematic_insights: Dict                # semantic insights (LLM extracted)
+    metadata_insights: Dict
+    metadata_summary_json: Optional[str]
+    thematic_summary: Dict
+    thematic_summary_json: Optional[str]
+    augmented_dataset_csv: Optional[str]
+    analysis_report: Dict
+    analysis_report_json: Optional[str]
+    step4_average_confidence: Optional[float]
 
     # =========================
     # STEP 5 — DRAFTING

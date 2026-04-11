@@ -26,6 +26,11 @@ from agents.agent_3 import (
     llm_classify_node,
     asreview_screen_node
 )
+from agents.agent_4 import (
+    metadata_insights_node,
+    thematic_augmentation_node,
+    augmented_analysis_node,
+)
 from tools.serpapi_tool import tools
 
 # Define toolsets
@@ -34,8 +39,8 @@ tools_step_1 = [google_scholar_search]
 
 # Bind tools
 llm = get_llm()
-model_step_1 = llm.bind_tools(tools_step_1,parallel_tool_calls=False)
-model_all = llm.bind_tools(tools,parallel_tool_calls=False)
+model_step_1 = llm.bind_tools(tools_step_1, parallel_tool_calls=False)
+model_all = llm.bind_tools(tools, parallel_tool_calls=False)
 
 
 def llm_call_tools_step_1(state: LiRAState):
@@ -148,6 +153,11 @@ def build_lira_graph():
     workflow.add_node("llm_classify", llm_classify_node)
     workflow.add_node("asreview_screen", asreview_screen_node)
 
+    # Step 4 — Insights Extraction
+    workflow.add_node("metadata_insights", metadata_insights_node)
+    workflow.add_node("thematic_augmentation", thematic_augmentation_node)
+    workflow.add_node("augmented_analysis", augmented_analysis_node)
+
     # Edges - Step 1.a
     workflow.add_edge(START, "generate_initial_questions")
     workflow.add_edge("generate_initial_questions", "select_framework")
@@ -174,11 +184,17 @@ def build_lira_graph():
     workflow.add_edge("build_search_queries", "define_criteria")
     workflow.add_edge("define_criteria", "prepare_search")
     workflow.add_edge("prepare_search", "save_papers")
-    # Step 3 edges
+
+    # Step 3
     workflow.add_edge("save_papers", "deduplicate")
     workflow.add_edge("deduplicate", "llm_classify")
     workflow.add_edge("llm_classify", "asreview_screen")
-    workflow.add_edge("asreview_screen", END)
+
+    # Step 4 starts after ASReview confirms included studies
+    workflow.add_edge("asreview_screen", "metadata_insights")
+    workflow.add_edge("metadata_insights", "thematic_augmentation")
+    workflow.add_edge("thematic_augmentation", "augmented_analysis")
+    workflow.add_edge("augmented_analysis", END)
 
     # Checkpointer required for interrupt() / human-in-the-loop
     from langgraph.checkpoint.memory import MemorySaver
@@ -245,7 +261,6 @@ if __name__ == "__main__":
                 ascii_text = text.encode("ascii", errors="replace").decode("ascii")
                 print(ascii_text, end=end, flush=flush)
             except ValueError:
-                # stdout closed or invalid
                 pass
         except Exception:
             pass
@@ -356,7 +371,7 @@ if __name__ == "__main__":
         elif node_name == "tool_node_search":
             safe_print(f"{C.YELLOW}Retrieving papers from external sources...{C.RESET}")
 
-        # ── Step 3 — Screening ──
+        # Step 3 — Screening
         elif node_name == "deduplicate":
             section("STEP 3.a — DEDUPLICATION", C.MAGENTA)
             dedup_csv = state_update.get("deduplicated_csv", "N/A")
@@ -372,7 +387,31 @@ if __name__ == "__main__":
             asreview_csv = state_update.get("asreview_screened_csv", "N/A")
             kv("Output File", asreview_csv, C.GREEN)
 
-    # ── Initialize logger ──────────────────────────────────────────
+        # Step 4 — Insights Extraction
+        elif node_name == "metadata_insights":
+            section("STEP 4.a — METADATA INSIGHTS", C.MAGENTA)
+            metadata = state_update.get("metadata_insights", {})
+            kv("Total Papers", metadata.get("total_papers", "N/A"), C.GREEN)
+            kv("DOI Coverage %", metadata.get("doi_coverage_pct", "N/A"), C.GREEN)
+            kv("Abstract Coverage %", metadata.get("abstract_coverage_pct", "N/A"), C.GREEN)
+            if metadata.get("top_journals"):
+                kv("Top Journals Found", len(metadata.get("top_journals", {})), C.GREEN)
+            if metadata.get("top_keywords"):
+                kv("Top Keywords Found", len(metadata.get("top_keywords", {})), C.GREEN)
+
+        elif node_name == "thematic_augmentation":
+            section("STEP 4.b — THEMATIC AUGMENTATION", C.MAGENTA)
+            kv("Augmented CSV", state_update.get("augmented_dataset_csv", "N/A"), C.GREEN)
+            kv("Average Confidence", state_update.get("step4_average_confidence", "N/A"), C.GREEN)
+
+        elif node_name == "augmented_analysis":
+            section("STEP 4.c — AUGMENTED ANALYSIS", C.MAGENTA)
+            analysis = state_update.get("analysis_report", {})
+            kv("Total Papers", analysis.get("total_papers", "N/A"), C.GREEN)
+            kv("Review Needed Count", analysis.get("review_needed_count", "N/A"), C.GREEN)
+            kv("Analysis JSON", state_update.get("analysis_report_json", "N/A"), C.GREEN)
+
+    # Initialize logger
     from logger import LiRALogger
     plog = LiRALogger()
 
@@ -404,7 +443,6 @@ if __name__ == "__main__":
                     continue
                 plog.node_start(node_name)
 
-                # ── Console output ──
                 section(f"NODE: {node_name}", C.CYAN)
 
                 if "messages" in state_update:
@@ -416,24 +454,26 @@ if __name__ == "__main__":
                     kv("Latest Log", state_update["logs"][-1], C.GREEN)
 
                 print_node_summary(node_name, state_update)
-
-                # ── File logging ──
                 plog.node_end(node_name, state_update)
 
-                if node_name == "generate_final_ranked_questions":
+                if node_name in {
+                    "generate_final_ranked_questions",
+                    "metadata_insights",
+                    "thematic_augmentation",
+                    "augmented_analysis",
+                }:
                     final_state = state_update
 
-        # ── Handle interrupt (ASReview human-in-the-loop) ──
+        # Handle interrupt (ASReview human-in-the-loop)
         from langgraph.types import Command
         graph_state = graph.get_state(thread_config)
-        while graph_state.next:  # pipeline is paused at an interrupt
+        while graph_state.next:
             section("PIPELINE PAUSED — HUMAN-IN-THE-LOOP", C.MAGENTA)
             safe_print(f"{C.YELLOW}The pipeline is waiting for you to complete ASReview screening.{C.RESET}")
             safe_print(f"{C.YELLOW}Follow the instructions above, then press ENTER to resume...{C.RESET}")
 
             user_input = input("\nEnter the FULL PATH to your ASReview result CSV file: ").strip()
 
-            # Resume the graph
             resume_value = user_input if user_input else "asreview_export.csv"
             section("RESUMING PIPELINE", C.CYAN)
 
@@ -455,6 +495,14 @@ if __name__ == "__main__":
                     print_node_summary(node_name, state_update)
                     plog.node_end(node_name, state_update)
 
+                    if node_name in {
+                        "generate_final_ranked_questions",
+                        "metadata_insights",
+                        "thematic_augmentation",
+                        "augmented_analysis",
+                    }:
+                        final_state = state_update
+
             graph_state = graph.get_state(thread_config)
 
     except Exception as e:
@@ -467,14 +515,21 @@ if __name__ == "__main__":
 
     section("FINAL RESULTS", C.GREEN)
 
-    if final_state and "final_ranked_questions" in final_state:
+    if final_state and "analysis_report" in final_state:
+        subheader("Step 4 Analysis Outputs", C.GREEN)
+        analysis = final_state.get("analysis_report", {})
+        safe_print(f"  Total Papers: {analysis.get('total_papers', 'N/A')}")
+        safe_print(f"  Average Extraction Confidence: {analysis.get('average_extraction_confidence', 'N/A')}")
+        safe_print(f"  Review Needed Count: {analysis.get('review_needed_count', 'N/A')}")
+        safe_print(f"  Analysis JSON: {final_state.get('analysis_report_json', 'N/A')}")
+    elif final_state and "final_ranked_questions" in final_state:
         subheader("Top Ranked Questions", C.GREEN)
         for idx, q in enumerate(final_state["final_ranked_questions"], 1):
             novelty = q.get("novelty_level", "Unknown Novelty")
             question = q.get("question", "")
             safe_print(f"  {idx}. [{novelty}] {question}")
     else:
-        safe_print("Final ranked questions not found in state.")
+        safe_print("No final results found in state.")
 
     plog.log_final_state(final_state)
     plog.log_summary()
