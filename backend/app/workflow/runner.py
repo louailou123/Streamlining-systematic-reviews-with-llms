@@ -20,7 +20,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
+import sqlite3
 from langgraph.types import Command
 
 from app.workflow.engine import (
@@ -29,6 +30,7 @@ from app.workflow.engine import (
     NODE_DESCRIPTIONS,
 )
 from app.services.event_service import EventService
+from logger import LiRALogger
 
 # Thread lock for CWD changes — ensures sequential node execution
 # Safe for v1 scale (5-10 concurrent runs)
@@ -78,14 +80,46 @@ def _scan_new_files(work_dir: str, known_files: set) -> List[Dict[str, Any]]:
 
 
 def _build_output_summary(state_update: Dict[str, Any]) -> Dict[str, Any]:
-    """Build a concise output summary from a state update, excluding large fields."""
+    """Build a concise output summary from a state update, parsing LLM messages natively."""
     summary = {}
-    skip_keys = {"messages", "logs", "errors"}
+    skip_keys = {"logs", "errors"}
     max_value_len = 500
 
     for key, value in state_update.items():
         if key in skip_keys:
             continue
+            
+        if key == "messages":
+            safe_messages = []
+            for msg in value:
+                msg_type = msg.__class__.__name__
+                content = getattr(msg, "content", "")
+                if not isinstance(content, str):
+                    content = str(content)
+                
+                msg_dict = {
+                    "type": msg_type,
+                    "content": content[:1500] + ("..." if len(content) > 1500 else ""),
+                }
+                
+                tool_calls = getattr(msg, "tool_calls", None)
+                if tool_calls:
+                    safe_tc = []
+                    for tc in tool_calls:
+                        safe_tc.append({
+                            "name": tc.get("name", "unknown"),
+                            "args": tc.get("args", {})
+                        })
+                    msg_dict["tool_calls"] = safe_tc
+                    
+                usage = getattr(msg, "usage_metadata", None)
+                if usage:
+                    msg_dict["usage_metadata"] = usage
+                    
+                safe_messages.append(msg_dict)
+            summary["messages"] = safe_messages
+            continue
+
         if isinstance(value, str) and len(value) > max_value_len:
             summary[key] = value[:max_value_len] + "..."
         elif isinstance(value, list) and len(value) > 10:
@@ -143,8 +177,15 @@ class WorkflowRunner:
         self.db_callbacks = db_callbacks or {}
         self.events = EventService(research_id, run_id)
         self.known_files: set = set()
-        self.checkpointer = MemorySaver()
+        # Ensure work directory exists quickly so we can write the sqlite DB
+        Path(self.work_dir).mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(os.path.join(self.work_dir, "checkpoints.sqlite"), check_same_thread=False)
+        self.checkpointer = SqliteSaver(self.conn)
+        self.checkpointer.setup()  # CRITICAL: Automatically create checkpoint tables if they don't exist
         self.thread_id = f"research-{research_id}-run-{run_id}"
+        
+        # HTML Logger strictly bound to work_dir/logs
+        self.html_logger = LiRALogger(base_dir=self.work_dir)
 
     def execute(self) -> Dict[str, Any]:
         """
@@ -176,6 +217,9 @@ class WorkflowRunner:
 
         self.events.log_message("Pipeline started")
         self._notify_db("run_started")
+        
+        self.html_logger.log_initial_input(initial_input)
+        self.html_logger.log_graph_structure(graph_builder)
 
         try:
             final_state = self._stream_graph(graph, initial_input, config)
@@ -183,6 +227,8 @@ class WorkflowRunner:
                 f"Pipeline completed. Current step: {final_state.get('current_step', 'Done')}"
             )
             self._notify_db("run_completed", state=final_state)
+            self.html_logger.log_final_state(final_state)
+            self.html_logger.close()
             return final_state
 
         except GraphInterruptException as e:
@@ -197,13 +243,16 @@ class WorkflowRunner:
 
             self.events.log_message(f"Pipeline paused: {interrupt_data.get('message', 'Approval required')}")
             self._notify_db("run_paused", interrupt_data=interrupt_data)
-            return {"status": "paused", "interrupt": interrupt_data}
+            self.html_logger.close()
+            raise GraphInterruptException(interrupt_data)
 
         except Exception as e:
             error_msg = str(e)
             error_tb = traceback.format_exc()
             self.events.workflow_failed(error_msg)
             self._notify_db("run_failed", error=error_msg, traceback=error_tb)
+            self.html_logger.log_error(e)
+            self.html_logger.close()
             raise
 
     def resume(self, resume_value: Any) -> Dict[str, Any]:
@@ -230,18 +279,31 @@ class WorkflowRunner:
                 f"Pipeline completed. Current step: {final_state.get('current_step', 'Done')}"
             )
             self._notify_db("run_completed", state=final_state)
+            self.html_logger.log_final_state(final_state)
+            self.html_logger.close()
             return final_state
 
         except GraphInterruptException as e:
-            self.events.log_message(f"Pipeline paused again: {e.interrupt_data.get('message', '')}")
-            self._notify_db("run_paused", interrupt_data=e.interrupt_data)
-            return {"status": "paused", "interrupt": e.interrupt_data}
+            interrupt_data = e.interrupt_data
+            if isinstance(interrupt_data, tuple):
+                interrupt_data = interrupt_data[0]
+            if hasattr(interrupt_data, "value"):
+                interrupt_data = interrupt_data.value
+            if not isinstance(interrupt_data, dict):
+                interrupt_data = {"message": str(interrupt_data)}
+
+            self.events.log_message(f"Pipeline paused again: {interrupt_data.get('message', '')}")
+            self._notify_db("run_paused", interrupt_data=interrupt_data)
+            self.html_logger.close()
+            raise GraphInterruptException(interrupt_data)
 
         except Exception as e:
             error_msg = str(e)
             error_tb = traceback.format_exc()
             self.events.workflow_failed(error_msg)
             self._notify_db("run_failed", error=error_msg, traceback=error_tb)
+            self.html_logger.log_error(e)
+            self.html_logger.close()
             raise
 
     def _stream_graph(self, graph, input_data, config) -> Dict[str, Any]:
@@ -273,6 +335,7 @@ class WorkflowRunner:
                         # Emit node started
                         start_time = time.time()
                         self.events.node_started(node_name, step_label, description)
+                        self.html_logger.node_start(node_name)
 
                         # Calculate duration
                         duration_ms = int((time.time() - start_time) * 1000)
@@ -294,6 +357,7 @@ class WorkflowRunner:
                             logs=node_logs[-3:] if node_logs else [],  # last 3 logs
                             duration_ms=duration_ms,
                         )
+                        self.html_logger.node_end(node_name, state_update if isinstance(state_update, dict) else {})
 
                         # Record node execution in DB
                         self._notify_db(

@@ -147,7 +147,7 @@ def build_lira_graph() -> StateGraph:
     preserving all node semantics, edges, and conditional routing.
     """
     llm = get_llm()
-    llm_with_tools = llm.bind_tools(search_tools)
+    llm_with_tools = get_llm(tools=search_tools)
 
     def feasibility_llm_call(state: LiRAState):
         response = llm_with_tools.invoke(state["messages"])

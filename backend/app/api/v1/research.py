@@ -157,3 +157,38 @@ async def get_messages(
     )
     messages = result.scalars().all()
     return [ResearchMessageResponse.model_validate(m) for m in messages]
+
+
+@router.get("/{research_id}/execution_log")
+async def get_execution_log(
+    research_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Serve the gorgeous LiRALogger HTML file natively."""
+    from fastapi.responses import FileResponse
+    from app.models.artifact import Artifact
+    import os
+
+    _ = await _get_research_or_404(research_id, current_user, db)
+
+    # Get latest HTML log artifact
+    result = await db.execute(
+        select(Artifact)
+        .where(
+            Artifact.research_id == research_id, 
+            Artifact.filename.like("lira_run_%.html")
+        )
+        .order_by(desc(Artifact.created_at))
+        .limit(1)
+    )
+    artifact = result.scalar_one_or_none()
+
+    if not artifact or not os.path.exists(artifact.storage_path):
+        raise NotFoundError("Execution Log HTML file")
+
+    return FileResponse(
+        path=artifact.storage_path, 
+        media_type="text/html",
+        filename="execution_log.html"
+    )
