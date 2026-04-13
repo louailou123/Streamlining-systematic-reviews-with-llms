@@ -1,10 +1,48 @@
+# ── Python ───────────────────────────────────────────────
 .venv/*
+venv/*
+__pycache__/
+*.pyc
+*.pyo
 .dist/*
+
+# ── IDE ──────────────────────────────────────────────────
 .vscode/*
+.idea/
+
+# ── Environment ─────────────────────────────────────────
 .env
-__pycache__
+backend/.env
+
+# ── Generated pipeline files ────────────────────────────
 logs/*
 raw_dataset.csv
 raw_dataset.ris
 screened_llm_dataset.csv
 prisma_search_strategy.md
+deduplicated_dataset.csv
+augmented_dataset.csv
+initial_dataset.csv
+asreview_import.csv
+asreview_export.csv
+literature_review_draft.md
+literature_review_final.md
+literature_review_outline.json
+metadata_summary.json
+thematic_summary.json
+analysis_report.json
+chart_*.csv
+visualizations/
+
+# ── Backend ─────────────────────────────────────────────
+backend/storage/
+backend/alembic/versions/*.py
+!backend/alembic/versions/.gitkeep
+
+# ── Frontend ────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Docker ──────────────────────────────────────────────
+*.log

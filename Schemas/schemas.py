@@ -144,11 +144,21 @@ class Step4AnalysisReport(BaseModel):
 # STEP 5 — DRAFTING
 # =========================
 
-class Outline(BaseModel):
-    sections: List[str]
+class OutlineSection(BaseModel):
+    title: str = Field(description="Section title for the literature review")
+    description: str = Field(description="Brief description of what this section should cover")
+    relevant_themes: List[str] = Field(default_factory=list, description="Key themes/topics this section should address")
 
-class SectionDraft(BaseModel):
-    content: str
+class OutlineResult(BaseModel):
+    sections: List[OutlineSection] = Field(description="Ordered list of literature review sections")
+
+class DraftedSection(BaseModel):
+    title: str = Field(description="Section title")
+    content: str = Field(description="Full drafted content for this section in Markdown")
+
+class ProofreadResult(BaseModel):
+    content: str = Field(description="The proofread and refined full literature review draft in Markdown")
+    improvements_made: List[str] = Field(default_factory=list, description="List of key improvements made during proofreading")
 
 # =========================
 # STEP 6 — SYNTHESIS

@@ -31,6 +31,11 @@ from agents.agent_4 import (
     thematic_augmentation_node,
     augmented_analysis_node,
 )
+from agents.agent_5 import (
+    generate_outline_node,
+    draft_sections_node,
+    proofread_draft_node,
+)
 from tools.serpapi_tool import tools
 
 # Define toolsets
@@ -158,6 +163,11 @@ def build_lira_graph():
     workflow.add_node("thematic_augmentation", thematic_augmentation_node)
     workflow.add_node("augmented_analysis", augmented_analysis_node)
 
+    # Step 5 — Reading & Drafting
+    workflow.add_node("generate_outline", generate_outline_node)
+    workflow.add_node("draft_sections", draft_sections_node)
+    workflow.add_node("proofread_draft", proofread_draft_node)
+
     # Edges - Step 1.a
     workflow.add_edge(START, "generate_initial_questions")
     workflow.add_edge("generate_initial_questions", "select_framework")
@@ -194,7 +204,12 @@ def build_lira_graph():
     workflow.add_edge("asreview_screen", "metadata_insights")
     workflow.add_edge("metadata_insights", "thematic_augmentation")
     workflow.add_edge("thematic_augmentation", "augmented_analysis")
-    workflow.add_edge("augmented_analysis", END)
+
+    # Step 5 — Reading & Drafting
+    workflow.add_edge("augmented_analysis", "generate_outline")
+    workflow.add_edge("generate_outline", "draft_sections")
+    workflow.add_edge("draft_sections", "proofread_draft")
+    workflow.add_edge("proofread_draft", END)
 
     # Checkpointer required for interrupt() / human-in-the-loop
     from langgraph.checkpoint.memory import MemorySaver
@@ -284,8 +299,8 @@ if __name__ == "__main__":
         section("LiRA GRAPH STRUCTURE", C.MAGENTA)
         try:
             graph.get_graph().print_ascii()
-        except Exception:
-            safe_print("[Graph structure unavailable for console display]")
+        except Exception as e:
+            safe_print(f"[Graph structure unavailable for console display: {e}]")
 
     def print_tool_calls(tool_calls):
         subheader("Tool Calls", C.YELLOW)
@@ -410,6 +425,34 @@ if __name__ == "__main__":
             kv("Total Papers", analysis.get("total_papers", "N/A"), C.GREEN)
             kv("Review Needed Count", analysis.get("review_needed_count", "N/A"), C.GREEN)
             kv("Analysis JSON", state_update.get("analysis_report_json", "N/A"), C.GREEN)
+            viz = state_update.get("visualization_paths", [])
+            if viz:
+                kv("Visualizations Generated", len(viz), C.GREEN)
+                for v in viz:
+                    safe_print(f"  📊 {v}")
+
+        # Step 5 — Reading & Drafting
+        elif node_name == "generate_outline":
+            section("STEP 5.a — OUTLINE GENERATION", C.MAGENTA)
+            outline = state_update.get("outline", [])
+            if outline:
+                subheader("Outline Sections", C.GREEN)
+                for i, s in enumerate(outline, 1):
+                    safe_print(f"  {i}. {s}")
+            kv("Outline JSON", state_update.get("outline_json", "N/A"), C.GREEN)
+
+        elif node_name == "draft_sections":
+            section("STEP 5.b — SECTION DRAFTING (ChatPDF + LLM)", C.MAGENTA)
+            drafts = state_update.get("draft_sections", {})
+            kv("Sections Drafted", len(drafts), C.GREEN)
+            kv("Draft Markdown", state_update.get("draft_markdown", "N/A"), C.GREEN)
+            chatpdf_count = len(state_update.get("chatpdf_summaries", {}))
+            if chatpdf_count:
+                kv("ChatPDF Summaries", chatpdf_count, C.GREEN)
+
+        elif node_name == "proofread_draft":
+            section("STEP 5.c — PROOFREADING & REFINEMENT", C.MAGENTA)
+            kv("Final Draft", state_update.get("final_draft_markdown", "N/A"), C.GREEN)
 
     # Initialize logger
     from logger import LiRALogger
@@ -461,6 +504,9 @@ if __name__ == "__main__":
                     "metadata_insights",
                     "thematic_augmentation",
                     "augmented_analysis",
+                    "generate_outline",
+                    "draft_sections",
+                    "proofread_draft",
                 }:
                     final_state = state_update
 
@@ -500,6 +546,9 @@ if __name__ == "__main__":
                         "metadata_insights",
                         "thematic_augmentation",
                         "augmented_analysis",
+                        "generate_outline",
+                        "draft_sections",
+                        "proofread_draft",
                     }:
                         final_state = state_update
 
@@ -515,7 +564,13 @@ if __name__ == "__main__":
 
     section("FINAL RESULTS", C.GREEN)
 
-    if final_state and "analysis_report" in final_state:
+    if final_state and "final_draft_markdown" in final_state:
+        subheader("Step 5 Literature Review", C.GREEN)
+        safe_print(f"  Final Draft: {final_state.get('final_draft_markdown', 'N/A')}")
+        safe_print(f"  Draft: {final_state.get('draft_markdown', 'N/A')}")
+        sections_drafted = final_state.get("draft_sections", {})
+        safe_print(f"  Sections: {len(sections_drafted)}")
+    elif final_state and "analysis_report" in final_state:
         subheader("Step 4 Analysis Outputs", C.GREEN)
         analysis = final_state.get("analysis_report", {})
         safe_print(f"  Total Papers: {analysis.get('total_papers', 'N/A')}")

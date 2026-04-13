@@ -463,6 +463,217 @@ def thematic_augmentation_node(state: LiRAState) -> Dict[str, Any]:
 # Step 4.c — Analysis of augmented dataset (deterministic)
 # ============================================================
 
+def _generate_visualizations(
+    analysis: "Step4AnalysisReport",
+    augmented_csv: str,
+) -> List[str]:
+    """
+    Generate publication-ready visualizations using pandas + seaborn.
+    Returns list of saved PNG file paths.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+
+    viz_dir = Path("visualizations")
+    viz_dir.mkdir(exist_ok=True)
+    saved: List[str] = []
+
+    # ── Shared style ──────────────────────────────────────────
+    sns.set_theme(style="darkgrid", font_scale=1.1)
+    PALETTE = sns.color_palette("viridis", 15)
+    ACCENT = "#58a6ff"
+    BG = "#0d1117"
+    SURFACE = "#161b22"
+    TEXT = "#e6edf3"
+    DIM = "#8b949e"
+
+    def _style_ax(ax, fig):
+        ax.set_facecolor(SURFACE)
+        fig.patch.set_facecolor(BG)
+        ax.tick_params(colors=TEXT, labelsize=9)
+        ax.xaxis.label.set_color(TEXT)
+        ax.yaxis.label.set_color(TEXT)
+        ax.title.set_color(TEXT)
+        for spine in ax.spines.values():
+            spine.set_color(DIM)
+
+    def _save(fig, name):
+        path = str(viz_dir / name)
+        fig.savefig(path, dpi=150, bbox_inches="tight", facecolor=BG)
+        plt.close(fig)
+        saved.append(path)
+
+    # 1. Papers by Year ─────────────────────────────────────────
+    try:
+        df = pd.read_csv("chart_papers_by_year.csv")
+        if not df.empty:
+            df = df.sort_values("year")
+            fig, ax = plt.subplots(figsize=(10, 5))
+            bars = ax.bar(df["year"].astype(str), df["count"], color=PALETTE[:len(df)], edgecolor=SURFACE, linewidth=0.5)
+            ax.set_title("Publications by Year", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Year")
+            ax.set_ylabel("Number of Papers")
+            for bar in bars:
+                h = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2., h + 0.1, str(int(h)),
+                        ha="center", va="bottom", color=TEXT, fontsize=9, fontweight="bold")
+            _style_ax(ax, fig)
+            _save(fig, "papers_by_year.png")
+    except Exception as e:
+        print(f"[Viz] papers_by_year skipped: {e}")
+
+    # 2. Sources Distribution ──────────────────────────────────
+    try:
+        df = pd.read_csv("chart_sources_distribution.csv")
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(8, 8))
+            colors = sns.color_palette("husl", len(df))
+            wedges, texts, autotexts = ax.pie(
+                df["count"], labels=df["source"], autopct="%1.1f%%",
+                colors=colors, startangle=140, pctdistance=0.85,
+                textprops={"color": TEXT, "fontsize": 10},
+            )
+            for text in autotexts:
+                text.set_fontweight("bold")
+            ax.set_title("Database Source Distribution", fontsize=14, fontweight="bold", color=TEXT, pad=16)
+            fig.patch.set_facecolor(BG)
+            _save(fig, "sources_distribution.png")
+    except Exception as e:
+        print(f"[Viz] sources_distribution skipped: {e}")
+
+    # 3. Top Keywords ───────────────────────────────────────────
+    try:
+        df = pd.read_csv("chart_top_keywords.csv").head(15)
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(10, 7))
+            df_sorted = df.sort_values("count")
+            ax.barh(df_sorted["keyword"], df_sorted["count"], color=sns.color_palette("cool", len(df_sorted)), edgecolor=SURFACE)
+            ax.set_title("Top 15 Keywords", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Frequency")
+            _style_ax(ax, fig)
+            _save(fig, "top_keywords.png")
+    except Exception as e:
+        print(f"[Viz] top_keywords skipped: {e}")
+
+    # 4. Top Journals ──────────────────────────────────────────
+    try:
+        df = pd.read_csv("chart_top_journals.csv").head(10)
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            df_sorted = df.sort_values("count")
+            ax.barh(df_sorted["journal"], df_sorted["count"], color=sns.color_palette("mako", len(df_sorted)), edgecolor=SURFACE)
+            ax.set_title("Top Journals / Venues", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Number of Papers")
+            _style_ax(ax, fig)
+            _save(fig, "top_journals.png")
+    except Exception as e:
+        print(f"[Viz] top_journals skipped: {e}")
+
+    # 5. Document Types (Donut) ────────────────────────────────
+    try:
+        df = pd.read_csv("chart_document_types.csv")
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(8, 8))
+            colors = sns.color_palette("Set2", len(df))
+            wedges, texts, autotexts = ax.pie(
+                df["count"], labels=df["document_type"], autopct="%1.1f%%",
+                colors=colors, startangle=90, pctdistance=0.82,
+                textprops={"color": TEXT, "fontsize": 10},
+            )
+            centre_circle = plt.Circle((0, 0), 0.55, fc=BG)
+            ax.add_artist(centre_circle)
+            for text in autotexts:
+                text.set_fontweight("bold")
+            ax.set_title("Document Types", fontsize=14, fontweight="bold", color=TEXT, pad=16)
+            fig.patch.set_facecolor(BG)
+            _save(fig, "document_types.png")
+    except Exception as e:
+        print(f"[Viz] document_types skipped: {e}")
+
+    # 6. Top Challenges ────────────────────────────────────────
+    try:
+        df = pd.read_csv("chart_challenges.csv").head(10)
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(11, 6))
+            df_sorted = df.sort_values("count")
+            ax.barh(df_sorted["challenge"], df_sorted["count"], color=sns.color_palette("rocket", len(df_sorted)), edgecolor=SURFACE)
+            ax.set_title("Top Challenges Addressed", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Frequency")
+            _style_ax(ax, fig)
+            _save(fig, "top_challenges.png")
+    except Exception as e:
+        print(f"[Viz] top_challenges skipped: {e}")
+
+    # 7. Top Evaluation Metrics ────────────────────────────────
+    try:
+        df = pd.read_csv("chart_metrics.csv").head(10)
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(11, 6))
+            df_sorted = df.sort_values("count")
+            ax.barh(df_sorted["metric"], df_sorted["count"], color=sns.color_palette("flare", len(df_sorted)), edgecolor=SURFACE)
+            ax.set_title("Top Evaluation Metrics", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Frequency")
+            _style_ax(ax, fig)
+            _save(fig, "top_metrics.png")
+    except Exception as e:
+        print(f"[Viz] top_metrics skipped: {e}")
+
+    # 8. Application Domains ───────────────────────────────────
+    try:
+        domains = analysis.top_application_domains
+        if domains:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            items = sorted(domains.items(), key=lambda x: x[1])[-12:]
+            labels = [k[:40] for k, _ in items]
+            values = [v for _, v in items]
+            ax.barh(labels, values, color=sns.color_palette("crest", len(items)), edgecolor=SURFACE)
+            ax.set_title("Application Domains", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Number of Papers")
+            _style_ax(ax, fig)
+            _save(fig, "application_domains.png")
+    except Exception as e:
+        print(f"[Viz] application_domains skipped: {e}")
+
+    # 9. Extraction Confidence Distribution ────────────────────
+    try:
+        df = pd.read_csv(augmented_csv)
+        if "extraction_confidence" in df.columns:
+            confidence = pd.to_numeric(df["extraction_confidence"], errors="coerce").dropna()
+            if len(confidence) > 0:
+                fig, ax = plt.subplots(figsize=(10, 5))
+                sns.histplot(confidence, bins=10, kde=True, color=ACCENT, edgecolor=SURFACE, ax=ax, alpha=0.7)
+                ax.axvline(confidence.mean(), color="#f85149", linestyle="--", linewidth=2, label=f"Mean: {confidence.mean():.2f}")
+                ax.legend(facecolor=SURFACE, edgecolor=DIM, labelcolor=TEXT)
+                ax.set_title("Extraction Confidence Distribution", fontsize=14, fontweight="bold", pad=12)
+                ax.set_xlabel("Confidence Score")
+                ax.set_ylabel("Count")
+                _style_ax(ax, fig)
+                _save(fig, "confidence_distribution.png")
+    except Exception as e:
+        print(f"[Viz] confidence_distribution skipped: {e}")
+
+    # 10. Countries Distribution ───────────────────────────────
+    try:
+        countries = analysis.top_countries
+        if countries:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            items = sorted(countries.items(), key=lambda x: x[1])[-12:]
+            labels = [k[:30] for k, _ in items]
+            values = [v for _, v in items]
+            ax.barh(labels, values, color=sns.color_palette("Spectral", len(items)), edgecolor=SURFACE)
+            ax.set_title("Countries / Regions of Study", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Number of Papers")
+            _style_ax(ax, fig)
+            _save(fig, "countries_distribution.png")
+    except Exception as e:
+        print(f"[Viz] countries_distribution skipped: {e}")
+
+    return saved
+
+
 def augmented_analysis_node(state: LiRAState) -> Dict[str, Any]:
     input_file = state.get("augmented_dataset_csv", "augmented_dataset.csv")
     logs = list(state.get("logs", []))
@@ -503,10 +714,19 @@ def augmented_analysis_node(state: LiRAState) -> Dict[str, Any]:
         [{"metric": k, "count": v} for k, v in analysis.top_metrics.items()],
     )
 
+    # Generate visualizations
+    viz_paths = _generate_visualizations(analysis, input_file)
+    if viz_paths:
+        logs.append(f"[Step4-Analysis] Generated {len(viz_paths)} visualizations in visualizations/ folder.")
+    else:
+        logs.append("[Step4-Analysis] No visualizations generated (check data/dependencies).")
+
     logs.append(f"[Step4-Analysis] Completed augmented analysis for {total} rows.")
     return {
         "analysis_report": analysis.model_dump(),
         "analysis_report_json": analysis_json,
+        "visualization_paths": viz_paths,
         "logs": logs,
         "current_step": "Step 4 complete",
     }
+

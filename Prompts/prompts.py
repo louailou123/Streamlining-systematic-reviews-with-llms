@@ -282,3 +282,91 @@ Field guidance:
 
 Return ONLY valid JSON.
 """
+
+# =========================
+# STEP 5 — READING & DRAFTING
+# =========================
+
+STEP5_OUTLINE_PROMPT = """
+You are an expert academic writer specializing in systematic literature reviews.
+
+Research question:
+{research_question}
+
+Based on the analysis of {total_papers} papers, generate a structured outline for a comprehensive literature review.
+
+Key thematic data to consider when designing sections:
+- Top application domains: {application_domains}
+- Top challenges addressed: {challenges}
+- Top algorithm/method families: {algorithms}
+- Experimental settings: {experimental_settings}
+
+Requirements:
+- Include an Introduction section
+- Include a Methodology section (briefly describing the systematic review process)
+- Create 3-6 thematic body sections based on the data above
+- Include a Discussion section covering cross-cutting themes
+- Include a Conclusion and Future Directions section
+- Each section should have a clear title, description, and list of relevant themes it covers
+- The outline must be logically organized and flow naturally
+
+Return ONLY valid JSON.
+"""
+
+STEP5_CHATPDF_SUMMARY_PROMPT = """Provide a structured summary of this paper with the following sections:
+1. **Objective**: What is the main goal of this study?
+2. **Methods**: What methodology or approach was used?
+3. **Key Findings**: What are the main results?
+4. **Relevance**: How does this relate to: {research_question}
+5. **Limitations**: What limitations are acknowledged?
+
+Be concise but thorough. Use direct quotes where helpful."""
+
+STEP5_DRAFT_SECTION_PROMPT = """
+You are an expert academic writer drafting a section of a systematic literature review.
+
+Research question:
+{research_question}
+
+Section title: {section_title}
+Section description: {section_description}
+Relevant themes: {relevant_themes}
+
+Below are summaries of papers relevant to this section. Use them to write a well-structured, analytical section.
+
+Paper summaries:
+{paper_summaries}
+
+Requirements:
+- Write in formal academic style suitable for a peer-reviewed journal
+- Synthesize findings across papers — do NOT just list paper-by-paper summaries
+- Identify patterns, trends, agreements, and contradictions
+- Cite papers by referencing their titles in parentheses, e.g., (Author et al., Year) or (Paper Title, Year)
+- Include critical analysis, not just description
+- Use smooth transitions between paragraphs
+- Length: 400-800 words per section
+- Format in Markdown
+
+Return ONLY valid JSON.
+"""
+
+STEP5_PROOFREAD_PROMPT = """
+You are an expert academic editor and proofreader specializing in literature reviews.
+
+Proofread and refine the following literature review draft. Focus on:
+
+1. **Grammar and spelling**: Fix any errors
+2. **Clarity**: Ensure sentences are clear and unambiguous
+3. **Coherence**: Ensure logical flow between paragraphs and sections
+4. **Argumentation**: Strengthen analytical claims and evidence connections
+5. **Academic tone**: Ensure formal, scholarly language throughout
+6. **Consistency**: Uniform formatting, terminology, and citation style
+7. **Transitions**: Improve connections between sections
+8. **Redundancy**: Remove repetitive content
+
+Draft to proofread:
+{draft_content}
+
+Return the COMPLETE improved draft in Markdown format, plus a list of key improvements made.
+Return ONLY valid JSON.
+"""

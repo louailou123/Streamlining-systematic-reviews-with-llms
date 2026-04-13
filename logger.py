@@ -140,6 +140,8 @@ HTML_HEAD = """<!DOCTYPE html>
   .step1 .node-number {{ background: var(--green); }}
   .step2 .node-number {{ background: var(--orange); }}
   .step3 .node-number {{ background: var(--purple); }}
+  .step4 .node-number {{ background: var(--cyan); }}
+  .step5 .node-number {{ background: var(--pink); }}
   .tool-node .node-number {{ background: var(--pink); }}
 
   /* Sub-sections inside nodes */
@@ -298,6 +300,8 @@ STEP2_NODES = {
     "tool_node_search", "save_papers",
 }
 STEP3_NODES = {"deduplicate", "llm_classify", "asreview_screen"}
+STEP4_NODES = {"metadata_insights", "thematic_augmentation", "augmented_analysis"}
+STEP5_NODES = {"generate_outline", "draft_sections", "proofread_draft"}
 TOOL_NODES = {"tool_node", "tool_node_2", "tool_node_search"}
 
 
@@ -310,6 +314,10 @@ def _node_css_class(name: str) -> str:
         return "step2"
     if name in STEP3_NODES:
         return "step3"
+    if name in STEP4_NODES:
+        return "step4"
+    if name in STEP5_NODES:
+        return "step5"
     return ""
 
 

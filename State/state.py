@@ -58,11 +58,17 @@ class LiRAState(TypedDict):
     analysis_report_json: Optional[str]
     step4_average_confidence: Optional[float]
 
+    visualization_paths: List[str]          # paths to generated chart PNGs
+
     # =========================
     # STEP 5 — DRAFTING
     # =========================
     outline: List[str]
     draft_sections: Dict[str, str]         # section -> content
+    outline_json: Optional[str]            # path to saved outline JSON
+    draft_markdown: Optional[str]          # path to draft markdown
+    final_draft_markdown: Optional[str]    # path to proofread final draft
+    chatpdf_summaries: Dict[str, str]      # row_id -> ChatPDF summary
 
     # =========================
     # STEP 6 — SYNTHESIS
