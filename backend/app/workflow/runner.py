@@ -187,9 +187,17 @@ class WorkflowRunner:
 
         except GraphInterruptException as e:
             # Human-in-the-loop: ASReview screening
-            self.events.log_message(f"Pipeline paused: {e.interrupt_data.get('message', 'Approval required')}")
-            self._notify_db("run_paused", interrupt_data=e.interrupt_data)
-            return {"status": "paused", "interrupt": e.interrupt_data}
+            interrupt_data = e.interrupt_data
+            if isinstance(interrupt_data, tuple):
+                interrupt_data = interrupt_data[0]
+            if hasattr(interrupt_data, "value"):
+                interrupt_data = interrupt_data.value
+            if not isinstance(interrupt_data, dict):
+                interrupt_data = {"message": str(interrupt_data)}
+
+            self.events.log_message(f"Pipeline paused: {interrupt_data.get('message', 'Approval required')}")
+            self._notify_db("run_paused", interrupt_data=interrupt_data)
+            return {"status": "paused", "interrupt": interrupt_data}
 
         except Exception as e:
             error_msg = str(e)

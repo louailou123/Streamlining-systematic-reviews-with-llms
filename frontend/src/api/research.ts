@@ -57,6 +57,7 @@ export interface Approval {
   response_data: Record<string, any> | null;
   requested_at: string;
   responded_at: string | null;
+  uploaded_file_id?: string | null;
 }
 
 export interface NodeExecution {

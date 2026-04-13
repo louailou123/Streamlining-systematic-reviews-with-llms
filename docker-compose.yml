@@ -6,14 +6,14 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: lira
-      POSTGRES_USER: lira
-      POSTGRES_PASSWORD: lira_secret
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: louai911
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lira"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -36,10 +36,11 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+      - "5001:5001"
     env_file:
       - backend/.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://lira:lira_secret@postgres:5432/lira
+      - DATABASE_URL=postgresql+asyncpg://postgres:louai911@postgres:5432/lira
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       postgres:
@@ -64,6 +65,18 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+
+  # ── DB Admin (pgAdmin) ──────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@lira.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

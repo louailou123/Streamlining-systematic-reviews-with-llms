@@ -40,7 +40,7 @@ class ResearchDetailResponse(BaseModel):
     title: str
     topic: str
     timeframe: str
-    databases: Optional[Dict[str, Any]]
+    databases: Optional[List[str]]
     status: str
     current_step: Optional[str]
     started_at: Optional[datetime]

@@ -50,9 +50,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     get().disconnectSSE();
 
     const token = localStorage.getItem('access_token');
-    const url = `/api/v1/events/stream/${researchId}`;
+    // EventSource doesn't support auth headers, so we pass token as query param
+    const url = `/api/v1/events/stream/${researchId}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
     
-    // EventSource doesn't support auth headers, so we use fetch-based SSE
     const es = new EventSource(url);
 
     es.addEventListener('connected', () => {

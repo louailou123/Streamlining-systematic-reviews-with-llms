@@ -91,6 +91,7 @@ async def create_research(
         status="pending",
     )
     db.add(research)
+    await db.flush()
 
     # Add initial user message to timeline
     user_msg = ResearchMessage(

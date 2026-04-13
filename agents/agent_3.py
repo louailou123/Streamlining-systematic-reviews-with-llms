@@ -572,13 +572,12 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
     print("[ASReview] Starting ASReview LAB...")
     try:
         subprocess.Popen(
-            [sys.executable, "-m", "asreview", "lab"],
+            [sys.executable, "-m", "asreview", "lab", "--host", "0.0.0.0", "--port", "5001"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         time.sleep(3)
-        webbrowser.open("http://localhost:5000")
-        logs.append("[ASReview] ASReview LAB launched at http://localhost:5000")
+        logs.append("[ASReview] ASReview LAB launched on port 5001")
     except Exception as e:
         warn = f"[ASReview] WARNING: Could not auto-start ASReview LAB: {e}"
         print(warn)
@@ -614,6 +613,7 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
                 "export the result CSV, then provide the file path to resume."
             ),
             "asreview_import_file": import_path,
+            "asreview_url": "http://localhost:5001",
             "total_papers": total,
             "llm_prior_included": included_count,
             "llm_prior_excluded": excluded_count,

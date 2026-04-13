@@ -94,15 +94,19 @@ class WorkflowService:
         else:
             db_list = ["Google Scholar", "arXiv", "OpenAlex", "PubMed", "CrossRef"]
 
+        # Get main event loop
+        loop = asyncio.get_running_loop()
+
         # Submit to thread pool
         _executor.submit(
             _run_workflow_sync,
-            research_id=str(research.id),
-            run_id=str(run.id),
-            work_dir=work_dir,
-            topic=research.topic,
-            timeframe=research.timeframe,
-            databases=db_list,
+            loop,
+            str(research.id),
+            str(run.id),
+            work_dir,
+            research.topic,
+            research.timeframe,
+            db_list,
         )
 
         return run
@@ -157,20 +161,25 @@ class WorkflowService:
         else:
             db_list = ["Google Scholar", "arXiv", "OpenAlex", "PubMed", "CrossRef"]
 
+        # Get main event loop
+        loop = asyncio.get_running_loop()
+
         # Submit resume to thread pool
         _executor.submit(
             _resume_workflow_sync,
-            research_id=str(research.id),
-            run_id=str(run.id),
-            work_dir=work_dir,
-            topic=research.topic,
-            timeframe=research.timeframe,
-            databases=db_list,
-            resume_value=resume_value,
+            loop,
+            str(research.id),
+            str(run.id),
+            work_dir,
+            research.topic,
+            research.timeframe,
+            db_list,
+            resume_value,
         )
 
 
 def _run_workflow_sync(
+    loop: asyncio.AbstractEventLoop,
     research_id: str,
     run_id: str,
     work_dir: str,
@@ -195,20 +204,20 @@ def _run_workflow_sync(
         final_state = runner.execute()
 
         # Persist final state to database
-        asyncio.run(_persist_completion(
+        asyncio.run_coroutine_threadsafe(_persist_completion(
             research_id=research_id,
             run_id=run_id,
             final_state=final_state,
             work_dir=work_dir,
-        ))
+        ), loop)
 
     except GraphInterruptException as e:
         # Pipeline paused for human-in-the-loop
-        asyncio.run(_persist_interrupt(
+        asyncio.run_coroutine_threadsafe(_persist_interrupt(
             research_id=research_id,
             run_id=run_id,
             interrupt_data=e.interrupt_data,
-        ))
+        ), loop)
 
     except Exception as e:
         error_msg = str(e)
@@ -216,15 +225,16 @@ def _run_workflow_sync(
         print(f"[WorkflowRunner] FAILED: {error_msg}")
         print(error_tb)
 
-        asyncio.run(_persist_failure(
+        asyncio.run_coroutine_threadsafe(_persist_failure(
             research_id=research_id,
             run_id=run_id,
             error_msg=error_msg,
             error_tb=error_tb,
-        ))
+        ), loop)
 
 
 def _resume_workflow_sync(
+    loop: asyncio.AbstractEventLoop,
     research_id: str,
     run_id: str,
     work_dir: str,
@@ -246,29 +256,29 @@ def _resume_workflow_sync(
     try:
         final_state = runner.resume(resume_value)
 
-        asyncio.run(_persist_completion(
+        asyncio.run_coroutine_threadsafe(_persist_completion(
             research_id=research_id,
             run_id=run_id,
             final_state=final_state,
             work_dir=work_dir,
-        ))
+        ), loop)
 
     except GraphInterruptException as e:
-        asyncio.run(_persist_interrupt(
+        asyncio.run_coroutine_threadsafe(_persist_interrupt(
             research_id=research_id,
             run_id=run_id,
             interrupt_data=e.interrupt_data,
-        ))
+        ), loop)
 
     except Exception as e:
         error_msg = str(e)
         error_tb = traceback.format_exc()
-        asyncio.run(_persist_failure(
+        asyncio.run_coroutine_threadsafe(_persist_failure(
             research_id=research_id,
             run_id=run_id,
             error_msg=error_msg,
             error_tb=error_tb,
-        ))
+        ), loop)
 
 
 # ── Database persistence helpers (called from background threads) ──
