@@ -1,6 +1,7 @@
 """
 LiRA Backend — Event Service
-Centralized event publishing for SSE and database persistence.
+Centralized event publishing for WebSocket and database persistence.
+Extended with per-node approval events.
 """
 
 import json
@@ -12,7 +13,7 @@ from app.api.v1.events import publish_event
 
 
 class EventService:
-    """Publishes workflow events to SSE subscribers and optionally persists them."""
+    """Publishes workflow events to WebSocket subscribers and optionally persists them."""
 
     def __init__(self, research_id: str, run_id: Optional[str] = None):
         self.research_id = str(research_id)
@@ -84,6 +85,61 @@ class EventService:
             step_label=step_label,
             message=f"Failed: {error}",
             data={"error": error},
+        )
+
+    def node_waiting_for_approval(
+        self,
+        node_name: str,
+        step_label: str = "",
+        description: str = "",
+        approval_id: Optional[str] = None,
+        node_execution_id: Optional[str] = None,
+        approval_type: str = "node_approval",
+        output_summary: Optional[Dict] = None,
+    ) -> None:
+        """Emit event when a node is waiting for user approval."""
+        self.emit(
+            "NODE_WAITING_FOR_APPROVAL",
+            node_name=node_name,
+            step_label=step_label,
+            message=f"Waiting for approval: {description}",
+            data={
+                "description": description,
+                "approval_id": approval_id,
+                "node_execution_id": node_execution_id,
+                "approval_type": approval_type,
+                "output_summary": output_summary or {},
+            },
+        )
+
+    def node_revision_started(
+        self,
+        node_name: str,
+        step_label: str = "",
+        feedback: str = "",
+    ) -> None:
+        """Emit event when a node revision (improve_result) starts."""
+        self.emit(
+            "NODE_REVISION_STARTED",
+            node_name=node_name,
+            step_label=step_label,
+            message=f"Revising {node_name} with feedback",
+            data={"feedback": feedback},
+        )
+
+    def node_retry_started(
+        self,
+        node_name: str,
+        step_label: str = "",
+        attempt: int = 1,
+    ) -> None:
+        """Emit event when a node retry starts."""
+        self.emit(
+            "NODE_RETRY_STARTED",
+            node_name=node_name,
+            step_label=step_label,
+            message=f"Retrying {node_name} (attempt {attempt})",
+            data={"attempt": attempt},
         )
 
     def log_message(self, message: str, node_name: Optional[str] = None) -> None:

@@ -1,6 +1,7 @@
 """
 LiRA Backend — Workflow Run Model
 Each execution attempt of a research pipeline.
+Extended with current_node tracking for per-node HITL approval.
 """
 
 import uuid
@@ -30,6 +31,12 @@ class WorkflowRun(Base):
 
     state_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Per-node HITL tracking
+    current_node: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    current_node_execution_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
 
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

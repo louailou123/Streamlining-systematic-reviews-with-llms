@@ -1,6 +1,7 @@
 """
 LiRA Backend — Workflow API Routes
 Start, resume, cancel workflows. List runs and node executions.
+Per-node approval: continue, improve, retry.
 """
 
 from uuid import UUID
@@ -10,14 +11,17 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, LiRAException
 from app.db.session import get_db
+from app.models.approval import Approval
 from app.models.node_execution import NodeExecution
 from app.models.research_history import ResearchHistory
 from app.models.user import User
 from app.models.workflow_run import WorkflowRun
 from app.schemas.workflow import (
+    NodeApprovalAction,
     NodeExecutionResponse,
+    PendingApprovalResponse,
     WorkflowRunResponse,
     WorkflowStateResponse,
 )
@@ -86,6 +90,117 @@ async def cancel_workflow(
     return {"status": "cancelled", "run_id": str(run.id)}
 
 
+# ── Per-Node Approval Endpoints ─────────────────────────────
+
+
+@router.get("/{research_id}/pending-approval", response_model=PendingApprovalResponse)
+async def get_pending_approval(
+    research_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the current pending approval for a research pipeline."""
+    _ = await _get_research_for_user(research_id, current_user, db)
+
+    result = await db.execute(
+        select(Approval)
+        .where(
+            Approval.research_id == research_id,
+            Approval.status == "pending",
+        )
+        .order_by(desc(Approval.requested_at))
+        .limit(1)
+    )
+    approval = result.scalar_one_or_none()
+
+    if not approval:
+        return PendingApprovalResponse(has_pending=False)
+
+    return PendingApprovalResponse(
+        has_pending=True,
+        approval_id=str(approval.id),
+        node_execution_id=approval.request_data.get("node_execution_id") if approval.request_data else None,
+        node_name=approval.node_name,
+        step_label=approval.request_data.get("step_label") if approval.request_data else None,
+        description=approval.request_data.get("description") if approval.request_data else None,
+        approval_type=approval.approval_type,
+    )
+
+
+@router.post("/{research_id}/nodes/{node_execution_id}/action")
+async def node_approval_action(
+    research_id: UUID,
+    node_execution_id: UUID,
+    body: NodeApprovalAction,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    User action on a node approval gate.
+    Actions: continue, improve_result, retry
+    """
+    research = await _get_research_for_user(research_id, current_user, db)
+
+    # Verify the node execution exists and belongs to this research
+    result = await db.execute(
+        select(NodeExecution)
+        .join(WorkflowRun)
+        .where(
+            NodeExecution.id == node_execution_id,
+            WorkflowRun.research_id == research_id,
+        )
+    )
+    node_exec = result.scalar_one_or_none()
+    if not node_exec:
+        raise NotFoundError("Node execution")
+
+    if node_exec.status not in ("waiting_for_approval", "failed"):
+        raise LiRAException(
+            f"Node is not awaiting action (current status: {node_exec.status})",
+            status_code=400,
+        )
+
+    # Mark the pending approval as responded
+    approval_result = await db.execute(
+        select(Approval)
+        .where(
+            Approval.research_id == research_id,
+            Approval.status == "pending",
+            Approval.node_name == node_exec.node_name,
+        )
+        .order_by(desc(Approval.requested_at))
+        .limit(1)
+    )
+    approval = approval_result.scalar_one_or_none()
+    if approval:
+        from datetime import datetime, timezone
+        approval.status = "approved" if body.action == "continue" else "responded"
+        approval.responded_at = datetime.now(timezone.utc)
+        approval.response_data = {
+            "action": body.action,
+            "feedback": body.feedback,
+        }
+
+    # Resume the workflow via service
+    from app.services.workflow_service import WorkflowService
+    workflow_service = WorkflowService(db)
+    await workflow_service.resume_with_action(
+        research=research,
+        node_execution_id=str(node_execution_id),
+        action=body.action,
+        feedback=body.feedback,
+    )
+
+    return {
+        "status": "resumed",
+        "action": body.action,
+        "node_name": node_exec.node_name,
+    }
+
+
+# ── Existing Query Endpoints ────────────────────────────────
+
+
 @router.get("/{research_id}/runs", response_model=list[WorkflowRunResponse])
 async def list_runs(
     research_id: UUID,
@@ -139,7 +254,6 @@ async def get_workflow_state(
     """Get current workflow state snapshot."""
     research = await _get_research_for_user(research_id, current_user, db)
 
-    # Get latest run's state
     result = await db.execute(
         select(WorkflowRun)
         .where(WorkflowRun.research_id == research_id)
@@ -152,5 +266,6 @@ async def get_workflow_state(
         research_id=research_id,
         status=research.status,
         current_step=research.current_step,
+        current_node=latest_run.current_node if latest_run else None,
         state_snapshot=latest_run.state_snapshot if latest_run else None,
     )

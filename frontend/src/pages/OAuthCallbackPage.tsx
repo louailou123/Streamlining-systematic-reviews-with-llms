@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { LoaderCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import { Sparkles } from 'lucide-react';
+import AuthLayout from '../components/layout/AuthLayout';
 
 const OAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const setTokens = useAuthStore((s) => s.setTokens);
-  const loadUser = useAuthStore((s) => s.loadUser);
+  const setTokens = useAuthStore((state) => state.setTokens);
+  const loadUser = useAuthStore((state) => state.loadUser);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,14 +23,21 @@ const OAuthCallbackPage: React.FC = () => {
   }, [searchParams, setTokens, loadUser, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center animate-fade-in">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center animate-pulse-glow">
-          <Sparkles className="w-8 h-8 text-white" />
+    <AuthLayout
+      eyebrow="Connecting account"
+      title="Completing your sign-in"
+      description="We are finalizing your session and preparing your LiRA workspace."
+    >
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-white/8 bg-white/[0.03] px-6 py-14 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-dark-surface-2">
+          <LoaderCircle className="h-7 w-7 animate-spin text-accent-blue-light" />
         </div>
-        <p className="text-gray-400">Completing sign in...</p>
+        <h2 className="mt-6 text-xl font-semibold text-white">Signing you in</h2>
+        <p className="mt-3 max-w-sm text-sm leading-6 text-gray-400">
+          Your account has been verified. LiRA will redirect you to the dashboard as soon as your profile is ready.
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

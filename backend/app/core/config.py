@@ -4,13 +4,19 @@ Environment-driven settings using pydantic-settings.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str((_BACKEND_ROOT / ".env").resolve()),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -62,7 +68,7 @@ class Settings(BaseSettings):
 
     # ── Storage ──────────────────────────────────────────────
     STORAGE_BACKEND: str = "local"  # local | s3
-    STORAGE_LOCAL_ROOT: str = "./storage"
+    STORAGE_LOCAL_ROOT: str = "storage"
     S3_BUCKET_NAME: str = ""
     S3_ENDPOINT_URL: str = ""  # For R2: https://<account>.r2.cloudflarestorage.com
     S3_ACCESS_KEY_ID: str = ""
@@ -71,6 +77,30 @@ class Settings(BaseSettings):
 
     # ── Frontend URL (for OAuth redirect after login) ────────
     FRONTEND_URL: str = "http://localhost:5173"
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def normalize_debug_flag(cls, value: bool | str | None) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+
+        normalized = str(value).strip().lower()
+        if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+            return True
+        if normalized in {"0", "false", "no", "off", "release", "prod", "production"}:
+            return False
+
+        return bool(normalized)
+
+    @field_validator("STORAGE_LOCAL_ROOT", mode="before")
+    @classmethod
+    def resolve_storage_local_root(cls, value: str | Path | None) -> str:
+        storage_root = Path(value or "storage")
+        if not storage_root.is_absolute():
+            storage_root = (_BACKEND_ROOT / storage_root).resolve()
+        return str(storage_root)
 
     @property
     def google_scopes_list(self) -> List[str]:

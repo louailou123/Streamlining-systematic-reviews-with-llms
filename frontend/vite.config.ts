@@ -6,6 +6,13 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // WebSocket endpoint — must be listed BEFORE the generic /api catch-all
+      '/api/v1/events/ws': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true,
+      },
+      // REST API
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,

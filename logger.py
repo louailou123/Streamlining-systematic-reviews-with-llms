@@ -350,6 +350,7 @@ class LiRALogger:
             python_ver=html.escape(sys.version.split()[0]),
             cwd=html.escape(os.getcwd()),
         ))
+        self._file.flush()
 
     def _w(self, text: str):
         self._file.write(text)

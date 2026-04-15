@@ -1,12 +1,16 @@
 """
 LiRA Backend — Workflow Engine
-Builds the LangGraph pipeline graph, preserving the exact same structure
-from the original main.py but adapted for web execution.
+Builds the LangGraph pipeline graph with per-node human-in-the-loop approval gates.
 
-Imports agent code from the project root (../agents/, ../llm/, ../tools/, etc.)
-to avoid duplicating the pipeline logic.
+Every real node is followed by an approval gate that calls interrupt().
+The gate pauses the graph until the user either:
+  - Continues (proceeds to next node)
+  - Requests improvement (re-runs the same node with feedback)
+
+Agent code is imported from the project root (../agents/, ../llm/, ../tools/).
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -17,7 +21,8 @@ if _PROJECT_ROOT not in sys.path:
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
-from langchain_core.messages import AIMessage
+from langgraph.types import interrupt
+from langchain_core.messages import AIMessage, HumanMessage
 
 # Import from existing pipeline code (preserved, no modifications)
 from State.state import LiRAState
@@ -54,6 +59,7 @@ from agents.agent_5 import (
 )
 from tools.serpapi_tool import tools as search_tools
 from llm.llm import get_llm
+from app.workflow.message_guard import guard_node
 
 
 # ── Node name → step label mapping ──────────────────────────
@@ -117,6 +123,186 @@ NODE_DESCRIPTIONS = {
 }
 
 
+# ── Approval Gate Definitions ───────────────────────────────
+# Each tuple: (gate_node_name, gated_real_node, improve_target, continue_target)
+# improve_target: where to route on "improve_result" (re-run)
+# continue_target: where to route on "continue" (next step)
+
+APPROVAL_GATES = [
+    # Step 1
+    ("gate_gen_questions",   "generate_initial_questions",      "generate_initial_questions",  "select_framework"),
+    ("gate_sel_framework",   "select_framework",                "select_framework",            "apply_framework"),
+    ("gate_apply_framework", "apply_framework",                 "apply_framework",             "feasibility_llm_call"),
+    ("gate_feasibility",     "parse_feasibility",               "feasibility_llm_call",        "originality_llm_call"),
+    ("gate_originality",     "parse_originality",               "originality_llm_call",        "rank_questions_llm_call"),
+    ("gate_ranking",         "generate_final_ranked_questions",  "rank_questions_llm_call",     "extract_keywords"),
+    # Step 2
+    ("gate_keywords",        "extract_keywords",                "extract_keywords",            "select_databases"),
+    ("gate_databases",       "select_databases",                "select_databases",            "build_search_queries"),
+    ("gate_queries",         "build_search_queries",            "build_search_queries",        "define_criteria"),
+    ("gate_criteria",        "define_criteria",                 "define_criteria",             "prepare_search"),
+    ("gate_search",          "prepare_search",                  "prepare_search",              "save_papers"),
+    ("gate_papers",          "save_papers",                     "save_papers",                 "deduplicate"),
+    # Step 3
+    ("gate_dedup",           "deduplicate",                     "deduplicate",                 "llm_classify"),
+    ("gate_classify",        "llm_classify",                    "llm_classify",                "asreview_screen"),
+    ("gate_asreview",        "asreview_screen",                 "asreview_screen",             "metadata_insights"),
+    # Step 4
+    ("gate_metadata",        "metadata_insights",               "metadata_insights",           "thematic_augmentation"),
+    ("gate_thematic",        "thematic_augmentation",           "thematic_augmentation",       "augmented_analysis"),
+    ("gate_analysis",        "augmented_analysis",              "augmented_analysis",          "generate_outline"),
+    # Step 5
+    ("gate_outline",         "generate_outline",                "generate_outline",            "draft_sections"),
+    ("gate_draft",           "draft_sections",                  "draft_sections",              "proofread_draft"),
+    ("gate_proofread",       "proofread_draft",                 "proofread_draft",             "__end__"),
+]
+
+# Set of gate node names (for runner to distinguish from real nodes)
+GATE_NODE_NAMES = {g[0] for g in APPROVAL_GATES}
+
+# Populate step maps for gate nodes (inherit from their parent)
+for gate_name, gated_node, _, _ in APPROVAL_GATES:
+    NODE_STEP_MAP[gate_name] = NODE_STEP_MAP.get(gated_node, "")
+    NODE_DESCRIPTIONS[gate_name] = f"Approval: {NODE_DESCRIPTIONS.get(gated_node, gated_node)}"
+
+
+DEFAULT_WEB_MODEL_NAME = (
+    os.getenv("LLM_MODEL_1")
+    or os.getenv("LLM_MODEL")
+    or "llama-3.3-70b-versatile"
+)
+TOOL_ENABLED_WEB_MODEL_NAME = f"{DEFAULT_WEB_MODEL_NAME}::tools"
+TOOL_ENABLED_INTERNAL_NODES = {
+    "feasibility_llm_call",
+    "originality_llm_call",
+    "rank_questions_llm_call",
+    "tool_node",
+    "tool_node_2",
+}
+
+
+def _select_web_model_name(node_name: str, _state: LiRAState) -> str:
+    if node_name in TOOL_ENABLED_INTERNAL_NODES:
+        return TOOL_ENABLED_WEB_MODEL_NAME
+    return DEFAULT_WEB_MODEL_NAME
+
+
+def _add_guarded_node(graph: StateGraph, node_name: str, node_fn):
+    graph.add_node(node_name, guard_node(node_name, node_fn, _select_web_model_name))
+
+
+# ── Gate Factory Functions ──────────────────────────────────
+
+def _make_approval_gate(node_name: str, step_label: str, description: str):
+    """
+    Create an approval gate node function.
+    When executed, it calls interrupt() to pause the graph.
+    On resume with improve_result: injects user feedback + previous output into
+    the topic field so agent nodes (which build prompts from state fields) see
+    the full revision context.
+    """
+    # Map each node to which state keys hold its output
+    NODE_OUTPUT_KEYS = {
+        "generate_initial_questions": ["initial_questions"],
+        "select_framework": ["selected_framework", "framework_justification"],
+        "apply_framework": ["framework_breakdown", "reframed_question"],
+        "parse_feasibility": ["feasibility_estimation", "feasibility_status"],
+        "parse_originality": ["survey_summaries", "overlap", "gaps"],
+        "generate_final_ranked_questions": ["final_ranked_questions"],
+        "extract_keywords": ["keywords"],
+        "select_databases": ["databases"],
+        "build_search_queries": ["search_queries"],
+        "define_criteria": ["inclusion_criteria", "exclusion_criteria"],
+        "prepare_search": ["search_metadata"],
+        "save_papers": ["raw_dataset_csv"],
+        "deduplicate": ["deduplicated_csv"],
+        "llm_classify": ["screened_llm_csv"],
+        "asreview_screen": ["asreview_screened_csv"],
+        "metadata_insights": ["metadata_insights"],
+        "thematic_augmentation": ["thematic_summary"],
+        "augmented_analysis": ["analysis_report"],
+        "generate_outline": ["outline"],
+        "draft_sections": ["draft_sections"],
+        "proofread_draft": ["final_draft_markdown"],
+    }
+
+    def gate_fn(state: LiRAState):
+        # Pause the graph
+        resume_action = interrupt({
+            "type": "node_approval",
+            "node_name": node_name,
+            "step_label": step_label,
+            "description": description,
+        })
+
+        # Parse the resume action
+        action = "continue"
+        feedback = None
+        if isinstance(resume_action, dict):
+            action = resume_action.get("action", "continue")
+            feedback = resume_action.get("feedback")
+
+        if action == "improve_result" and feedback:
+            # Build context from previous output
+            output_keys = NODE_OUTPUT_KEYS.get(node_name, [])
+            previous_output_parts = []
+            for key in output_keys:
+                val = state.get(key)
+                if val is not None:
+                    if isinstance(val, (list, dict)):
+                        import json
+                        previous_output_parts.append(f"{key}: {json.dumps(val, default=str)}")
+                    else:
+                        previous_output_parts.append(f"{key}: {val}")
+
+            previous_output = "\n".join(previous_output_parts) if previous_output_parts else "(no previous output)"
+
+            # Build the revision context and inject into topic so agent sees it
+            original_topic = state.get("topic", "")
+            revision_context = (
+                f"{original_topic}\n\n"
+                f"--- REVISION REQUEST for {description} ---\n"
+                f"Previous output:\n{previous_output}\n\n"
+                f"User feedback: {feedback}\n"
+                f"Please revise the output based on the user's feedback above.\n"
+                f"--- END REVISION REQUEST ---"
+            )
+
+            return {
+                "topic": revision_context,
+                "user_feedback": feedback,
+                "current_approval_node": node_name,
+                "messages": [HumanMessage(
+                    content=f"[Revision for {description}] Previous output: {previous_output[:500]}... User feedback: {feedback}"
+                )],
+            }
+
+        # Continue: clear feedback state, restore original topic if it was modified
+        return {
+            "user_feedback": None,
+            "current_approval_node": None,
+        }
+
+    gate_fn.__name__ = f"gate_{node_name}"
+    return gate_fn
+
+
+def _make_gate_router(gated_node: str, improve_target: str, continue_target: str):
+    """
+    Create a conditional router for an approval gate.
+    Routes back to improve_target on revision, or forward to continue_target.
+    """
+    def router(state: LiRAState) -> str:
+        if state.get("current_approval_node") == gated_node:
+            return improve_target
+        return continue_target
+
+    router.__name__ = f"route_gate_{gated_node}"
+    return router
+
+
+# ── Conditional Edge Functions (unchanged) ──────────────────
+
 def _should_continue_feasibility(state: LiRAState) -> str:
     """Route: if the LLM made a tool call, go to tool_node; else parse."""
     last = state["messages"][-1] if state.get("messages") else None
@@ -140,14 +326,20 @@ def _should_continue_ranking(state: LiRAState) -> str:
     return "generate_final_ranked_questions"
 
 
+# ── Graph Builder ───────────────────────────────────────────
+
 def build_lira_graph() -> StateGraph:
     """
-    Build the full LiRA pipeline graph.
-    This is the exact same graph structure as the original main.py,
-    preserving all node semantics, edges, and conditional routing.
+    Build the full LiRA pipeline graph with per-node approval gates.
+
+    Graph structure: each real node is followed by an approval gate that
+    calls interrupt(). The gate pauses until the user approves (continue)
+    or requests revision (improve_result → re-run node).
     """
     llm = get_llm()
     llm_with_tools = get_llm(tools=search_tools)
+
+    # ── Internal LLM call nodes (not gated — internal routing) ──
 
     def feasibility_llm_call(state: LiRAState):
         response = llm_with_tools.invoke(state["messages"])
@@ -166,80 +358,77 @@ def build_lira_graph() -> StateGraph:
 
     graph = StateGraph(LiRAState)
 
-    # ── Step 1 nodes ─────────────────────────────────────────
-    graph.add_node("generate_initial_questions", generate_initial_questions_node)
-    graph.add_node("select_framework", select_framework_node)
-    graph.add_node("apply_framework", apply_framework_node)
-    graph.add_node("feasibility_llm_call", feasibility_llm_call)
-    graph.add_node("tool_node", tool_node)
-    graph.add_node("parse_feasibility", parse_feasibility_node)
-    graph.add_node("originality_llm_call", originality_llm_call)
-    graph.add_node("tool_node_2", tool_node_2)
-    graph.add_node("parse_originality", parse_originality_node)
-    graph.add_node("rank_questions_llm_call", rank_questions_llm_call)
-    graph.add_node("generate_final_ranked_questions", generate_final_ranked_questions_node)
+    # ── Register all real nodes ─────────────────────────────
 
-    # ── Step 2 nodes ─────────────────────────────────────────
-    graph.add_node("extract_keywords", extract_keywords_node)
-    graph.add_node("select_databases", select_databases_node)
-    graph.add_node("build_search_queries", build_search_queries_node)
-    graph.add_node("define_criteria", define_criteria_node)
-    graph.add_node("prepare_search", prepare_search_node)
-    graph.add_node("save_papers", save_papers_node)
+    # Step 1
+    _add_guarded_node(graph, "generate_initial_questions", generate_initial_questions_node)
+    _add_guarded_node(graph, "select_framework", select_framework_node)
+    _add_guarded_node(graph, "apply_framework", apply_framework_node)
+    _add_guarded_node(graph, "feasibility_llm_call", feasibility_llm_call)
+    _add_guarded_node(graph, "tool_node", tool_node)
+    _add_guarded_node(graph, "parse_feasibility", parse_feasibility_node)
+    _add_guarded_node(graph, "originality_llm_call", originality_llm_call)
+    _add_guarded_node(graph, "tool_node_2", tool_node_2)
+    _add_guarded_node(graph, "parse_originality", parse_originality_node)
+    _add_guarded_node(graph, "rank_questions_llm_call", rank_questions_llm_call)
+    _add_guarded_node(graph, "generate_final_ranked_questions", generate_final_ranked_questions_node)
 
-    # ── Step 3 nodes ─────────────────────────────────────────
-    graph.add_node("deduplicate", deduplicate_node)
-    graph.add_node("llm_classify", llm_classify_node)
-    graph.add_node("asreview_screen", asreview_screen_node)
+    # Step 2
+    _add_guarded_node(graph, "extract_keywords", extract_keywords_node)
+    _add_guarded_node(graph, "select_databases", select_databases_node)
+    _add_guarded_node(graph, "build_search_queries", build_search_queries_node)
+    _add_guarded_node(graph, "define_criteria", define_criteria_node)
+    _add_guarded_node(graph, "prepare_search", prepare_search_node)
+    _add_guarded_node(graph, "save_papers", save_papers_node)
 
-    # ── Step 4 nodes ─────────────────────────────────────────
-    graph.add_node("metadata_insights", metadata_insights_node)
-    graph.add_node("thematic_augmentation", thematic_augmentation_node)
-    graph.add_node("augmented_analysis", augmented_analysis_node)
+    # Step 3
+    _add_guarded_node(graph, "deduplicate", deduplicate_node)
+    _add_guarded_node(graph, "llm_classify", llm_classify_node)
+    _add_guarded_node(graph, "asreview_screen", asreview_screen_node)
 
-    # ── Step 5 nodes ─────────────────────────────────────────
-    graph.add_node("generate_outline", generate_outline_node)
-    graph.add_node("draft_sections", draft_sections_node)
-    graph.add_node("proofread_draft", proofread_draft_node)
+    # Step 4
+    _add_guarded_node(graph, "metadata_insights", metadata_insights_node)
+    _add_guarded_node(graph, "thematic_augmentation", thematic_augmentation_node)
+    _add_guarded_node(graph, "augmented_analysis", augmented_analysis_node)
 
-    # ── Edges: Step 1 ────────────────────────────────────────
+    # Step 5
+    _add_guarded_node(graph, "generate_outline", generate_outline_node)
+    _add_guarded_node(graph, "draft_sections", draft_sections_node)
+    _add_guarded_node(graph, "proofread_draft", proofread_draft_node)
+
+    # ── Register approval gate nodes ────────────────────────
+
+    for gate_name, gated_node, _, _ in APPROVAL_GATES:
+        step_label = NODE_STEP_MAP.get(gated_node, "")
+        description = NODE_DESCRIPTIONS.get(gated_node, gated_node)
+        gate_fn = _make_approval_gate(gated_node, step_label, description)
+        _add_guarded_node(graph, gate_name, gate_fn)
+
+    # ── Edges ───────────────────────────────────────────────
+
+    # START → first node
     graph.add_edge(START, "generate_initial_questions")
-    graph.add_edge("generate_initial_questions", "select_framework")
-    graph.add_edge("select_framework", "apply_framework")
-    graph.add_edge("apply_framework", "feasibility_llm_call")
 
+    # Real nodes → their approval gates
+    for gate_name, gated_node, _, _ in APPROVAL_GATES:
+        graph.add_edge(gated_node, gate_name)
+
+    # Approval gates → conditional routing (improve or continue)
+    for gate_name, gated_node, improve_target, continue_target in APPROVAL_GATES:
+        router = _make_gate_router(gated_node, improve_target, continue_target)
+        graph.add_conditional_edges(gate_name, router)
+
+    # ── Tool loop edges (unchanged internal routing) ────────
+
+    # Feasibility: llm_call → [tool_node | parse_feasibility]
     graph.add_conditional_edges("feasibility_llm_call", _should_continue_feasibility)
     graph.add_edge("tool_node", "feasibility_llm_call")
-    graph.add_edge("parse_feasibility", "originality_llm_call")
 
+    # Originality: llm_call → [tool_node_2 | parse_originality]
     graph.add_conditional_edges("originality_llm_call", _should_continue_originality)
     graph.add_edge("tool_node_2", "originality_llm_call")
-    graph.add_edge("parse_originality", "rank_questions_llm_call")
 
+    # Ranking: llm_call → [tool_node | generate_final_ranked_questions]
     graph.add_conditional_edges("rank_questions_llm_call", _should_continue_ranking)
-    graph.add_edge("generate_final_ranked_questions", "extract_keywords")
-
-    # ── Edges: Step 2 ────────────────────────────────────────
-    graph.add_edge("extract_keywords", "select_databases")
-    graph.add_edge("select_databases", "build_search_queries")
-    graph.add_edge("build_search_queries", "define_criteria")
-    graph.add_edge("define_criteria", "prepare_search")
-    graph.add_edge("prepare_search", "save_papers")
-
-    # ── Edges: Step 3 ────────────────────────────────────────
-    graph.add_edge("save_papers", "deduplicate")
-    graph.add_edge("deduplicate", "llm_classify")
-    graph.add_edge("llm_classify", "asreview_screen")
-
-    # ── Edges: Step 4 ────────────────────────────────────────
-    graph.add_edge("asreview_screen", "metadata_insights")
-    graph.add_edge("metadata_insights", "thematic_augmentation")
-    graph.add_edge("thematic_augmentation", "augmented_analysis")
-
-    # ── Edges: Step 5 ────────────────────────────────────────
-    graph.add_edge("augmented_analysis", "generate_outline")
-    graph.add_edge("generate_outline", "draft_sections")
-    graph.add_edge("draft_sections", "proofread_draft")
-    graph.add_edge("proofread_draft", END)
 
     return graph

@@ -82,3 +82,9 @@ class LiRAState(TypedDict):
     current_step: Optional[str]            # for tracking execution
     logs: List[str]                       # execution logs
     errors: List[str]                     # error tracking
+
+    # =========================
+    # PER-NODE APPROVAL (HITL)
+    # =========================
+    user_feedback: Optional[str]           # feedback from improve_result action
+    current_approval_node: Optional[str]   # which node is waiting for approval

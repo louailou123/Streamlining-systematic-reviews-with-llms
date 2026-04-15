@@ -66,12 +66,29 @@ export interface NodeExecution {
   node_name: string;
   step_label: string | null;
   status: string;
+  node_order: number;
+  attempt_number: number;
+  revision_number: number;
   started_at: string;
   completed_at: string | null;
+  approved_at: string | null;
   duration_ms: number | null;
   output_summary: Record<string, any> | null;
   logs: any;
   error_message: string | null;
+  feedback_text: string | null;
+}
+
+export interface PendingApproval {
+  has_pending: boolean;
+  approval_id: string | null;
+  node_execution_id: string | null;
+  node_name: string | null;
+  step_label: string | null;
+  description: string | null;
+  approval_type: string | null;
+  output_summary?: Record<string, any> | null;
+  _source?: 'rest' | 'ws';
 }
 
 export const researchApi = {
@@ -135,6 +152,37 @@ export const researchApi = {
 
   async getNodeExecutions(researchId: string): Promise<NodeExecution[]> {
     const res = await client.get(`/workflow/${researchId}/nodes`);
+    return res.data;
+  },
+
+  // ── Per-Node Approval Actions ──────────────────────────
+
+  async getPendingApproval(researchId: string): Promise<PendingApproval> {
+    const res = await client.get(`/workflow/${researchId}/pending-approval`);
+    return res.data;
+  },
+
+  async continueNode(researchId: string, nodeExecutionId: string): Promise<any> {
+    const res = await client.post(
+      `/workflow/${researchId}/nodes/${nodeExecutionId}/action`,
+      { action: 'continue' }
+    );
+    return res.data;
+  },
+
+  async improveNode(researchId: string, nodeExecutionId: string, feedback: string): Promise<any> {
+    const res = await client.post(
+      `/workflow/${researchId}/nodes/${nodeExecutionId}/action`,
+      { action: 'improve_result', feedback }
+    );
+    return res.data;
+  },
+
+  async retryNode(researchId: string, nodeExecutionId: string): Promise<any> {
+    const res = await client.post(
+      `/workflow/${researchId}/nodes/${nodeExecutionId}/action`,
+      { action: 'retry' }
+    );
     return res.data;
   },
 

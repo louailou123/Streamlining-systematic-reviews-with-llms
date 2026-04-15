@@ -1,206 +1,342 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { researchApi, type ResearchSummary, type CreateResearchRequest } from '../api/research';
-import { useAuthStore } from '../stores/authStore';
 import {
-  Sparkles, Plus, Search, BookOpen, Clock, CheckCircle2,
-  XCircle, PauseCircle, Loader2, Send, LogOut, ChevronRight
+  ArrowRight,
+  BookOpen,
+  Clock3,
+  FolderKanban,
+  LoaderCircle,
+  PauseCircle,
+  RefreshCw,
+  Search,
+  Sparkles,
+  WandSparkles,
 } from 'lucide-react';
+import { researchApi, type ResearchSummary } from '../api/research';
+import { useAuthStore } from '../stores/authStore';
+import AppShell from '../components/layout/AppShell';
+import MetricCard from '../components/ui/MetricCard';
+import SectionHeader from '../components/ui/SectionHeader';
+import StatePanel from '../components/ui/StatePanel';
+import StatusBadge from '../components/ui/StatusBadge';
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Not started';
+  return new Date(value).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+const suggestedTopics = [
+  'Artificial intelligence applications in food safety and quality control',
+  'Machine learning for early disease detection in primary care',
+  'Renewable energy adoption and sustainable development outcomes',
+];
 
 const DashboardPage: React.FC = () => {
   const [histories, setHistories] = useState<ResearchSummary[]>([]);
   const [topic, setTopic] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const [loadError, setLoadError] = useState('');
+  const [createError, setCreateError] = useState('');
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
+  const loadHistories = async () => {
+    try {
+      setLoadError('');
+      setLoading(true);
+      const data = await researchApi.list();
+      setHistories(data.items);
+    } catch (err: any) {
+      setLoadError(err?.response?.data?.detail || 'We could not load your research projects right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await researchApi.list();
-        setHistories(data.items);
-      } catch (err) {
-        console.error('Failed to load research histories:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadHistories();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!topic.trim() || creating) return;
+
+    setCreateError('');
     setCreating(true);
+
     try {
       const research = await researchApi.create({ topic: topic.trim() });
       navigate(`/research/${research.id}`);
-    } catch (err) {
-      console.error('Failed to create research:', err);
+    } catch (err: any) {
+      setCreateError(err?.response?.data?.detail || 'Failed to create research. Please try again.');
       setCreating(false);
     }
   };
 
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case 'running': return <Loader2 className="w-4 h-4 text-accent-blue animate-spin" />;
-      case 'completed': return <CheckCircle2 className="w-4 h-4 text-accent-green" />;
-      case 'failed': return <XCircle className="w-4 h-4 text-accent-rose" />;
-      case 'paused': return <PauseCircle className="w-4 h-4 text-accent-amber" />;
-      default: return <Clock className="w-4 h-4 text-gray-500" />;
-    }
-  };
+  const filteredHistories = histories.filter((history) => {
+    const haystack = `${history.title} ${history.topic} ${history.latest_summary || ''}`.toLowerCase();
+    return haystack.includes(searchQuery.trim().toLowerCase());
+  });
+
+  const runningCount = histories.filter((history) => history.status === 'running').length;
+  const pausedCount = histories.filter((history) => history.status === 'paused').length;
+  const completedCount = histories.filter((history) => history.status === 'completed').length;
 
   return (
-    <div className="min-h-screen">
-      {/* Background gradients */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute top-0 left-1/3 w-[600px] h-[600px] bg-accent-blue/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-accent-purple/5 rounded-full blur-3xl" />
-      </div>
-
-      {/* Top Bar */}
-      <header className="sticky top-0 z-50 border-b border-dark-border bg-dark-bg/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-bold gradient-text">LiRA</span>
+    <AppShell
+      currentView="dashboard"
+      title="Research operations cockpit"
+      description="Launch AI-assisted systematic reviews, monitor live pipeline progress, and return to any project with full context."
+      eyebrow="Dashboard"
+      user={user}
+      onLogout={logout}
+      actions={
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-gray-400 sm:block">
+            {histories.length} total projects
           </div>
-
-          <div className="flex items-center gap-4">
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center text-xs font-bold text-white">
-                  {(user.full_name || user.email)[0].toUpperCase()}
-                </div>
-                <span className="text-sm text-gray-400 hidden sm:block">
-                  {user.full_name || user.email}
-                </span>
-              </div>
-            )}
-            <button onClick={logout} className="btn-ghost text-sm flex items-center gap-1.5 text-gray-500">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:block">Logout</span>
-            </button>
-          </div>
+          <button type="button" onClick={loadHistories} className="btn-subtle">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        {/* Hero Section */}
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="gradient-text">Systematic Reviews,</span>
-            <br />
-            <span className="text-gray-100">Streamlined by AI</span>
-          </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Enter your research topic and LiRA will search, screen, analyze, and draft
-            a literature review — powered by LLMs and multi-database search.
+      }
+    >
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <section className="panel-strong overflow-hidden p-6 sm:p-8">
+          <div className="section-eyebrow">Premium workflow, clear checkpoints</div>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Turn complex review work into a visible, step-by-step research pipeline.
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-400 sm:text-base">
+            LiRA helps you frame the question, build the search, screen evidence, extract insights, and draft the review
+            while preserving approvals, retries, and live activity.
           </p>
-        </div>
 
-        {/* New Research Input */}
-        <div className="max-w-3xl mx-auto mb-16 animate-slide-up">
-          <form onSubmit={handleCreate} className="relative">
-            <div className="glass-card p-2 flex items-center gap-2 transition-all duration-300 focus-within:border-accent-blue/50 focus-within:shadow-lg focus-within:shadow-accent-blue/10">
-              <div className="flex-1">
-                <textarea
-                  id="research-topic-input"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Describe your research topic... e.g. 'The impact of artificial intelligence on drug discovery in precision medicine'"
-                  className="w-full bg-transparent px-4 py-3 text-gray-100 placeholder-gray-500/60 resize-none focus:outline-none text-sm leading-relaxed"
-                  rows={2}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleCreate(e);
-                    }
-                  }}
-                />
-              </div>
-              <button
-                id="start-research-btn"
-                type="submit"
-                disabled={!topic.trim() || creating}
-                className="self-end mb-1 mr-1 p-3 rounded-lg bg-gradient-to-r from-accent-blue to-accent-purple text-white
-                           transition-all duration-300 hover:shadow-lg hover:shadow-accent-blue/25
-                           disabled:opacity-30 disabled:cursor-not-allowed"
-              >
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <MetricCard
+              label="Active workflows"
+              value={String(runningCount)}
+              description="Projects currently moving through the pipeline."
+              icon={Sparkles}
+              tone="blue"
+            />
+            <MetricCard
+              label="Needs review"
+              value={String(pausedCount)}
+              description="Steps waiting for your approval or revision."
+              icon={PauseCircle}
+              tone="amber"
+            />
+            <MetricCard
+              label="Completed"
+              value={String(completedCount)}
+              description="Projects that have already finished."
+              icon={FolderKanban}
+              tone="green"
+            />
+          </div>
+
+          <div className="mt-8 rounded-3xl border border-white/8 bg-white/[0.03] p-5">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <WandSparkles className="h-4 w-4 text-accent-cyan" />
+              Suggested starting points
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-400">
+              Use a sample topic to seed the create form, then refine the wording before you start the pipeline.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {suggestedTopics.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => setTopic(suggestion)}
+                  className="rounded-full border border-white/10 bg-dark-surface-2/85 px-4 py-2 text-left text-sm text-gray-300 transition-all duration-200 hover:border-accent-cyan/35 hover:text-white"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="panel p-6 sm:p-7">
+          <SectionHeader
+            eyebrow="New review"
+            title="Start a research workflow"
+            description="Describe the question you want LiRA to investigate. You can start broad and refine it during approvals."
+          />
+
+          {createError && (
+            <div className="mt-5 rounded-2xl border border-accent-rose/20 bg-accent-rose/10 px-4 py-3 text-sm text-accent-rose">
+              {createError}
+            </div>
+          )}
+
+          <form onSubmit={handleCreate} className="mt-6 space-y-5">
+            <div>
+              <label htmlFor="research-topic-input" className="field-label">
+                Research topic
+              </label>
+              <textarea
+                id="research-topic-input"
+                value={topic}
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder="Example: How does artificial intelligence improve food safety and quality control in industrial food processing?"
+                className="textarea-dark"
+                rows={6}
+                disabled={creating}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-gray-400">
+              LiRA will create the project immediately, then move you into the live workspace where each major step can be reviewed.
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-gray-500">Use Enter inside the dashboard form after editing, or click the action button below.</div>
+              <button id="start-research-btn" type="submit" disabled={!topic.trim() || creating} className="btn-primary">
                 {creating ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Creating workspace
+                  </>
                 ) : (
-                  <Send className="w-5 h-5" />
+                  <>
+                    Start research
+                    <ArrowRight className="h-4 w-4" />
+                  </>
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-600 mt-2 text-center">
-              Press Enter to start • Shift+Enter for new line
-            </p>
           </form>
-        </div>
+        </section>
+      </div>
 
-        {/* Research History */}
-        <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-100 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-accent-blue" />
-              Research History
-            </h2>
-            <span className="text-sm text-gray-500">{histories.length} projects</span>
-          </div>
+      <section className="panel p-6 sm:p-7">
+        <SectionHeader
+          eyebrow="Research history"
+          title="Resume recent work"
+          description="Open any workspace to inspect completed outputs, approvals, failures, and live activity."
+          actions={
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <label className="relative min-w-[240px]">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="input-dark pl-11"
+                  placeholder="Search projects"
+                />
+              </label>
+            </div>
+          }
+        />
 
+        <div className="mt-6">
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="glass-card p-5">
-                  <div className="skeleton h-5 w-3/4 mb-3" />
-                  <div className="skeleton h-4 w-1/3" />
+            <div className="grid gap-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="panel-muted p-5">
+                  <div className="skeleton h-5 w-48" />
+                  <div className="mt-4 flex gap-3">
+                    <div className="skeleton h-4 w-24" />
+                    <div className="skeleton h-4 w-28" />
+                  </div>
+                  <div className="mt-4 skeleton h-4 w-full" />
                 </div>
               ))}
             </div>
-          ) : histories.length === 0 ? (
-            <div className="glass-card p-12 text-center">
-              <Sparkles className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No research projects yet</p>
-              <p className="text-sm text-gray-600">Enter a topic above to start your first review</p>
-            </div>
+          ) : loadError ? (
+            <StatePanel
+              tone="error"
+              title="Could not load research history"
+              description={loadError}
+              action={
+                <button type="button" onClick={loadHistories} className="btn-secondary">
+                  <RefreshCw className="h-4 w-4" />
+                  Try again
+                </button>
+              }
+            />
+          ) : filteredHistories.length === 0 ? (
+            <StatePanel
+              title={histories.length === 0 ? 'No research projects yet' : 'No projects match this search'}
+              description={
+                histories.length === 0
+                  ? 'Create your first workflow to start capturing research questions, review gates, and generated outputs.'
+                  : 'Try a different search term or clear the project filter to see the full history.'
+              }
+              action={
+                histories.length === 0 ? undefined : (
+                  <button type="button" onClick={() => setSearchQuery('')} className="btn-secondary">
+                    Clear search
+                  </button>
+                )
+              }
+            />
           ) : (
-            <div className="space-y-3">
-              {histories.map((h) => (
+            <div className="grid gap-4">
+              {filteredHistories.map((history) => (
                 <button
-                  key={h.id}
-                  onClick={() => navigate(`/research/${h.id}`)}
-                  className="w-full glass-card-hover p-5 text-left group"
+                  key={history.id}
+                  type="button"
+                  onClick={() => navigate(`/research/${history.id}`)}
+                  className="panel-interactive w-full p-5 text-left"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        {statusIcon(h.status)}
-                        <h3 className="font-medium text-gray-200 truncate group-hover:text-gray-100 transition-colors">
-                          {h.title}
-                        </h3>
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <StatusBadge status={history.status} />
+                        {history.current_step && (
+                          <span className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+                            {history.current_step}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>{new Date(h.created_at).toLocaleDateString()}</span>
-                        {h.current_step && <span className="font-mono">{h.current_step}</span>}
-                        {h.latest_summary && <span className="truncate max-w-xs">{h.latest_summary}</span>}
+
+                      <h3 className="mt-4 text-lg font-semibold text-white">{history.title}</h3>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-400">{history.topic}</p>
+
+                      <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                        <span className="inline-flex items-center gap-2">
+                          <Clock3 className="h-4 w-4" />
+                          Created {formatDate(history.created_at)}
+                        </span>
+                        {history.completed_at && (
+                          <span className="inline-flex items-center gap-2">
+                            <BookOpen className="h-4 w-4" />
+                            Finished {formatDate(history.completed_at)}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-accent-blue transition-colors" />
+
+                    <div className="flex max-w-sm flex-col items-start gap-3 lg:items-end">
+                      <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-400 lg:text-right">
+                        {history.latest_summary || 'Open this workspace to inspect its latest outputs and activity.'}
+                      </div>
+                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-white">
+                        Open workspace
+                        <ArrowRight className="h-4 w-4" />
+                      </span>
+                    </div>
                   </div>
                 </button>
               ))}
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </section>
+    </AppShell>
   );
 };
 

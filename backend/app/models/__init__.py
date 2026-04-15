@@ -8,6 +8,7 @@ from app.models.oauth_account import OAuthAccount
 from app.models.research_history import ResearchHistory
 from app.models.workflow_run import WorkflowRun
 from app.models.node_execution import NodeExecution
+from app.models.node_review_action import NodeReviewAction
 from app.models.artifact import Artifact
 from app.models.approval import Approval
 from app.models.research_message import ResearchMessage
@@ -18,6 +19,7 @@ __all__ = [
     "ResearchHistory",
     "WorkflowRun",
     "NodeExecution",
+    "NodeReviewAction",
     "Artifact",
     "Approval",
     "ResearchMessage",
