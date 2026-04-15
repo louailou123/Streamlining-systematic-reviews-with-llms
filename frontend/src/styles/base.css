@@ -1,0 +1,392 @@
+:root {
+  color-scheme: light;
+  font-family: 'Manrope', system-ui, sans-serif;
+  --app-bg: #f4f4ef;
+  --app-bg-accent:
+    radial-gradient(circle at top left, rgba(18, 128, 92, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(15, 23, 42, 0.05), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0));
+  --app-surface: rgba(255, 255, 252, 0.82);
+  --app-surface-strong: rgba(255, 255, 252, 0.94);
+  --app-surface-soft: rgba(246, 246, 241, 0.94);
+  --app-surface-muted: rgba(240, 241, 235, 0.96);
+  --app-border: rgba(23, 27, 24, 0.08);
+  --app-border-strong: rgba(23, 27, 24, 0.13);
+  --app-text: #171b18;
+  --app-text-soft: rgba(23, 27, 24, 0.68);
+  --app-subtle: rgba(23, 27, 24, 0.44);
+  --app-accent: #12805c;
+  --app-accent-soft: rgba(18, 128, 92, 0.08);
+  --app-shadow-lg: 0 28px 60px -40px rgba(15, 23, 42, 0.18);
+  --app-shadow-md: 0 18px 36px -34px rgba(15, 23, 42, 0.18);
+  --app-shadow-sm: 0 12px 24px -22px rgba(15, 23, 42, 0.14);
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--app-bg-accent), var(--app-bg);
+  color: var(--app-text);
+  font-family: 'Manrope', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html.app-dark {
+  color-scheme: dark;
+  --app-bg: #101311;
+  --app-bg-accent:
+    radial-gradient(circle at top left, rgba(91, 211, 173, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(56, 72, 61, 0.22), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  --app-surface: rgba(24, 28, 25, 0.82);
+  --app-surface-strong: rgba(20, 24, 21, 0.94);
+  --app-surface-soft: rgba(27, 32, 28, 0.94);
+  --app-surface-muted: rgba(31, 37, 33, 0.96);
+  --app-border: rgba(228, 235, 226, 0.1);
+  --app-border-strong: rgba(228, 235, 226, 0.16);
+  --app-text: rgba(244, 247, 241, 0.96);
+  --app-text-soft: rgba(218, 225, 216, 0.7);
+  --app-subtle: rgba(201, 210, 198, 0.46);
+  --app-accent: #5bd3ad;
+  --app-accent-soft: rgba(91, 211, 173, 0.12);
+  --app-shadow-lg: 0 30px 64px -42px rgba(0, 0, 0, 0.48);
+  --app-shadow-md: 0 18px 40px -36px rgba(0, 0, 0, 0.4);
+  --app-shadow-sm: 0 14px 28px -24px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(18, 128, 92, 0.16);
+}
+
+.app-page {
+  min-height: 100vh;
+  color: var(--app-text);
+}
+
+.app-shell-surface {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--app-shadow-sm);
+}
+
+.app-card {
+  background: var(--app-surface-strong);
+  border: 1px solid var(--app-border);
+  border-radius: 1.4rem;
+  box-shadow: var(--app-shadow-md);
+}
+
+.app-card-soft {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 1.2rem;
+  box-shadow: none;
+}
+
+.app-heading {
+  margin: 0;
+  font-size: clamp(1.7rem, 2.8vw, 2.6rem);
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+}
+
+.app-subheading {
+  margin: 0;
+  color: var(--app-text-soft);
+  line-height: 1.7;
+  max-width: 62ch;
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--app-subtle);
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.muted-copy {
+  color: var(--app-text-soft);
+}
+
+.sidebar-project-link {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  background: transparent;
+  overflow: hidden;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.sidebar-project-link:hover {
+  background: var(--app-surface-muted);
+  border-color: var(--app-border);
+  transform: translateY(-1px);
+}
+
+.sidebar-project-link.is-active {
+  background: var(--app-surface-strong);
+  border-color: rgba(18, 128, 92, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(18, 128, 92, 0.08);
+}
+
+.workspace-detail-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.workspace-detail-item {
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+}
+
+.result-summary-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--app-text-soft);
+}
+
+.timeline-card {
+  width: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: 1.2rem;
+  background: var(--app-surface-strong);
+  box-shadow: none;
+}
+
+.timeline-marker {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 2px solid var(--app-surface-strong);
+  box-shadow: 0 0 0 5px var(--app-accent-soft);
+}
+
+.timeline-marker.is-success {
+  background: #15803d;
+}
+
+.timeline-marker.is-warning {
+  background: #b45309;
+}
+
+.timeline-marker.is-error {
+  background: #dc2626;
+}
+
+.timeline-marker.is-running {
+  background: var(--app-accent);
+}
+
+.timeline-marker.is-default {
+  background: #94a3b8;
+}
+
+.surface-inline-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+}
+
+.surface-inline-note.is-danger {
+  border-color: rgba(220, 38, 38, 0.18);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.surface-inline-note.is-warning {
+  border-color: rgba(180, 83, 9, 0.16);
+  background: rgba(180, 83, 9, 0.05);
+}
+
+.surface-inline-note.is-success {
+  border-color: rgba(21, 128, 61, 0.16);
+  background: rgba(21, 128, 61, 0.05);
+}
+
+.p-card,
+.p-drawer,
+.p-panel,
+.p-message,
+.p-inputtext,
+.p-textarea,
+.p-password-input,
+.p-tag {
+  border-radius: 1rem;
+}
+
+.p-card {
+  box-shadow: none;
+}
+
+.p-card .p-card-body {
+  padding: 1.25rem 1.3rem;
+}
+
+.p-button {
+  min-height: 2.65rem;
+  border-radius: 0.95rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.p-button .p-button-label {
+  font-weight: 600;
+}
+
+.p-button.p-button-sm {
+  min-height: 2.2rem;
+}
+
+.p-button.p-button-secondary {
+  background: var(--app-surface-soft);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+.p-button.p-button-secondary:not(:disabled):hover {
+  background: var(--app-surface-muted);
+  border-color: var(--app-border-strong);
+}
+
+.p-button.p-button-text {
+  background: transparent;
+  border-color: transparent;
+  color: var(--app-text-soft);
+}
+
+.p-button.p-button-text:not(:disabled):hover {
+  background: rgba(18, 128, 92, 0.05);
+  color: var(--app-text);
+}
+
+.p-button.p-button-danger {
+  background: #b42318;
+  border-color: #b42318;
+}
+
+.p-inputtext,
+.p-textarea,
+.p-password-input {
+  width: 100%;
+  border-radius: 1rem;
+  box-shadow: none;
+}
+
+.p-inputtext,
+.p-textarea {
+  line-height: 1.55;
+}
+
+.p-message {
+  border: 1px solid var(--app-border);
+  box-shadow: none;
+}
+
+.p-message.p-message-secondary {
+  background: var(--app-surface-soft);
+  color: var(--app-text-soft);
+}
+
+.p-message.p-message-error {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.p-tag {
+  font-weight: 600;
+}
+
+.p-drawer {
+  background: var(--app-surface-strong);
+  border-left: 1px solid var(--app-border);
+}
+
+.p-drawer .p-drawer-header {
+  padding: 1.2rem 1.25rem 0.6rem;
+}
+
+.p-drawer .p-drawer-content {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.p-panel {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  box-shadow: none;
+}
+
+.p-panel .p-panel-header {
+  background: transparent;
+  color: var(--app-text);
+  border-bottom: 1px solid var(--app-border);
+  padding: 0.9rem 1rem;
+}
+
+.p-panel .p-panel-content {
+  padding: 1rem;
+}
+
+.p-divider.p-divider-horizontal {
+  margin: 0.4rem 0;
+}
+
+.p-timeline .p-timeline-event-opposite {
+  display: none;
+}
+
+.p-timeline .p-timeline-event-content {
+  padding: 0 0 1rem 1rem;
+}
+
+.p-timeline .p-timeline-event-connector {
+  background: var(--app-border-strong);
+}
+
+@media (max-width: 1023px) {
+  .p-drawer {
+    width: min(22rem, 100vw);
+  }
+}

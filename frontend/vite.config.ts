@@ -1,22 +1,26 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { fileURLToPath, URL } from 'node:url';
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   server: {
     port: 5173,
     proxy: {
-      // WebSocket endpoint — must be listed BEFORE the generic /api catch-all
       '/api/v1/events/ws': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         ws: true,
       },
-      // REST API
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
   },
-})
+});

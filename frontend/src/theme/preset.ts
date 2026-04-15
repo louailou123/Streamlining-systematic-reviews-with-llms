@@ -1,0 +1,102 @@
+import { definePreset } from '@primeuix/themes';
+import Aura from '@primeuix/themes/aura';
+
+export const liraPreset = definePreset(Aura, {
+  semantic: {
+    primary: {
+      50: '{emerald.50}',
+      100: '{emerald.100}',
+      200: '{emerald.200}',
+      300: '{emerald.300}',
+      400: '{emerald.400}',
+      500: '{emerald.500}',
+      600: '{emerald.600}',
+      700: '{emerald.700}',
+      800: '{emerald.800}',
+      900: '{emerald.900}',
+      950: '{emerald.950}',
+    },
+    focusRing: {
+      width: '2px',
+      style: 'solid',
+      color: '{primary.color}',
+      offset: '1px',
+    },
+    colorScheme: {
+      light: {
+        surface: {
+          0: '#ffffff',
+          50: '{stone.50}',
+          100: '{stone.100}',
+          200: '{stone.200}',
+          300: '{stone.300}',
+          400: '{stone.400}',
+          500: '{stone.500}',
+          600: '{stone.600}',
+          700: '{stone.700}',
+          800: '{stone.800}',
+          900: '{stone.900}',
+          950: '{stone.950}',
+        },
+        primary: {
+          color: '#12805c',
+          inverseColor: '#ffffff',
+          hoverColor: '#0f6e4f',
+          activeColor: '#0c5b41',
+        },
+        highlight: {
+          background: 'rgba(18, 128, 92, 0.08)',
+          focusBackground: 'rgba(18, 128, 92, 0.14)',
+          color: '#0f6e4f',
+          focusColor: '#0c5b41',
+        },
+        formField: {
+          background: '#fbfbf7',
+          disabledBackground: '#f1f3ed',
+          borderColor: 'rgba(24, 28, 25, 0.12)',
+          hoverBorderColor: 'rgba(24, 28, 25, 0.18)',
+          focusBorderColor: 'rgba(18, 128, 92, 0.45)',
+          color: '#181c19',
+          placeholderColor: 'rgba(24, 28, 25, 0.45)',
+        },
+      },
+      dark: {
+        surface: {
+          0: '#ffffff',
+          50: '{stone.50}',
+          100: '{stone.100}',
+          200: '{stone.200}',
+          300: '{stone.300}',
+          400: '{stone.400}',
+          500: '{stone.500}',
+          600: '{stone.600}',
+          700: '{stone.700}',
+          800: '{stone.800}',
+          900: '{stone.900}',
+          950: '{stone.950}',
+        },
+        primary: {
+          color: '#5bd3ad',
+          inverseColor: '#0f1210',
+          hoverColor: '#7be0be',
+          activeColor: '#a1ebd2',
+        },
+        highlight: {
+          background: 'rgba(91, 211, 173, 0.14)',
+          focusBackground: 'rgba(91, 211, 173, 0.22)',
+          color: '#d4fff1',
+          focusColor: '#ffffff',
+        },
+        formField: {
+          background: '#171b18',
+          disabledBackground: '#111412',
+          borderColor: 'rgba(226, 232, 220, 0.12)',
+          hoverBorderColor: 'rgba(226, 232, 220, 0.18)',
+          focusBorderColor: 'rgba(91, 211, 173, 0.45)',
+          color: 'rgba(241, 245, 239, 0.92)',
+          placeholderColor: 'rgba(198, 208, 198, 0.52)',
+        },
+      },
+    },
+  },
+});

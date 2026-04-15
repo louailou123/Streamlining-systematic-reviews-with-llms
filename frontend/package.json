@@ -5,30 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0",
-    "axios": "^1.7.0",
-    "zustand": "^5.0.0",
-    "@tanstack/react-query": "^5.60.0",
-    "lucide-react": "^0.460.0",
-    "react-dropzone": "^14.3.0",
-    "react-markdown": "^9.0.0",
-    "react-syntax-highlighter": "^15.6.0"
+    "axios": "^1.7.9",
+    "pinia": "^3.0.3",
+    "primeflex": "^4.0.0",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.4.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
-    "typescript": "^5.6.0",
+    "@primeuix/themes": "^1.2.3",
+    "@types/node": "^22.13.10",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
     "vite": "^6.0.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
-    "autoprefixer": "^10.4.0",
-    "@types/react-syntax-highlighter": "^15.5.0"
+    "vue-tsc": "^2.1.10"
   }
 }
