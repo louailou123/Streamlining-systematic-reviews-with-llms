@@ -166,6 +166,10 @@ export const useWorkflowStore = defineStore('workflow', () => {
             description: message.data?.description || message.message || null,
             approval_type: message.data?.approval_type ?? 'node_approval',
             output_summary: message.data?.output_summary ?? null,
+            download_file: message.data?.download_file ?? null,
+            download_description: message.data?.download_description ?? null,
+            asreview_url: message.data?.asreview_url ?? null,
+            upload_description: message.data?.upload_description ?? null,
             _source: 'ws',
           };
           return;

@@ -81,14 +81,14 @@
 
       <Panel header="Activity" toggleable>
         <EmptyState
-          v-if="!eventFeed.length"
+          v-if="!filteredEventFeed.length"
           title="No activity yet"
           description="Workflow events will appear here as the pipeline progresses."
           icon="pi pi-bolt"
         />
         <div v-else class="flex flex-column gap-2">
           <div
-            v-for="entry in eventFeed"
+            v-for="entry in filteredEventFeed"
             :key="entry.id"
             class="workspace-detail-item"
           >
@@ -130,15 +130,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import Button from 'primevue/button';
 import Drawer from 'primevue/drawer';
 import Panel from 'primevue/panel';
 import Skeleton from 'primevue/skeleton';
 
 import type { Artifact, ResearchDetail, ResearchMessage } from '@/types/research';
+import { HIDDEN_NODE_NAMES } from '@/lib/workflow';
 import EmptyState from '@/components/common/EmptyState.vue';
 
-defineProps<{
+const props = defineProps<{
   visible: boolean;
   research: ResearchDetail | null;
   databasesSummary: string;
@@ -150,7 +152,9 @@ defineProps<{
     details: string[];
     stepLabel?: string;
     timestamp?: string;
+    nodeName?: string;
   }>;
+  visibleNodeNames: Set<string>;
   messages: ResearchMessage[];
 }>();
 
@@ -160,6 +164,17 @@ defineEmits<{
   'download-artifact': [artifactId: string, filename: string];
   'open-execution-log': [];
 }>();
+
+const filteredEventFeed = computed(() =>
+  props.eventFeed.filter((entry) => {
+    // Always show events without a node name (workflow-level events)
+    if (!entry.nodeName) return true;
+    // Hide events from internal/hidden nodes
+    if (HIDDEN_NODE_NAMES.has(entry.nodeName)) return false;
+    if (entry.nodeName.startsWith('gate_')) return false;
+    return true;
+  }),
+);
 
 function formatTime(value?: string) {
   if (!value) {

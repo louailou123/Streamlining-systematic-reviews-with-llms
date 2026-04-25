@@ -67,13 +67,22 @@
             </div>
           </div>
 
-          <Message
-            v-if="research.latest_error && !timelineItems.some((item) => item.isFailed)"
-            severity="error"
-            class="w-full mt-3"
+          <div
+            v-if="research.latest_error && research.status === 'failed'"
+            class="pipeline-error-banner"
           >
-            {{ research.latest_error }}
-          </Message>
+            <Message severity="error" class="w-full">
+              {{ research.latest_error }}
+            </Message>
+            <Button
+              label="Retry Pipeline"
+              icon="pi pi-refresh"
+              severity="danger"
+              size="small"
+              :loading="actionLoading === 'retry:pipeline'"
+              @click="handleRetryPipeline"
+            />
+          </div>
         </template>
       </Card>
 
@@ -99,11 +108,33 @@
           :action-error="actionError"
           :action-error-target="actionErrorTarget"
           :runtime-message="runtimeMessage"
+          :approval-type="approvalType"
+          :asreview-url="asreviewUrl"
+          :download-description="downloadDescription"
+          :research-id="id"
           @continue="handleContinue"
           @improve="handleImprove"
           @retry="handleRetry"
+          @upload="handleUploadAsreview"
           @update:feedback="feedback = $event"
         />
+
+        <!-- Download PDF button at end of completed pipeline -->
+        <div v-if="research?.status === 'completed'" class="workspace-download-section">
+          <div class="surface-inline-note is-success">
+            <strong class="workspace-status__title">
+              <i class="pi pi-check-circle" /> Literature Review Ready
+            </strong>
+            <span class="muted-copy">Your final literature review is ready. Download it as a PDF file.</span>
+          </div>
+          <Button
+            label="Download Literature Review (PDF)"
+            icon="pi pi-file-pdf"
+            size="small"
+            :loading="downloadingPdf"
+            @click="handleDownloadPdf"
+          />
+        </div>
       </div>
     </div>
 
@@ -114,6 +145,7 @@
       :artifacts="artifacts"
       :artifacts-loading="artifactsLoading"
       :event-feed="eventFeed"
+      :visible-node-names="visibleNodeNames"
       :messages="displayMessages"
       @update:visible="detailsVisible = $event"
       @refresh-artifacts="loadArtifacts"
@@ -124,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -137,12 +169,14 @@ import LoadingState from '@/components/common/LoadingState.vue';
 import { useWorkspace } from '@/composables/useWorkspace';
 import DetailsDrawer from '@/components/workspace/DetailsDrawer.vue';
 import PipelineTimeline from '@/components/workspace/PipelineTimeline.vue';
+import { researchApi } from '@/api/research';
 
 const props = defineProps<{
   id: string;
 }>();
 
 const router = useRouter();
+const downloadingPdf = ref(false);
 const {
   research,
   messages,
@@ -164,11 +198,16 @@ const {
   databasesSummary,
   runtimeMessage,
   workspaceNarrative,
+  approvalType,
+  asreviewUrl,
+  downloadDescription,
   loadInitialData,
   loadArtifacts,
   handleContinue,
   handleImprove,
   handleRetry,
+  handleRetryPipeline,
+  handleUploadAsreview,
   downloadArtifact,
   openExecutionLog,
 } = useWorkspace(props.id);
@@ -180,6 +219,9 @@ const headerDescription = computed(() =>
   'Review progress step by step and keep long details in the side drawer.',
 );
 const displayMessages = computed(() => messages.value.filter((message) => message.message_type !== 'approval'));
+
+const visibleNodeNames = computed(() => new Set(timelineItems.value.map((item) => item.nodeName)));
+
 const workspaceStatusClass = computed(() => {
   if (!workspaceNarrative.value) {
     return '';
@@ -199,6 +241,110 @@ const workspaceStatusClass = computed(() => {
 
   return '';
 });
+
+async function handleDownloadPdf() {
+  downloadingPdf.value = true;
+  try {
+    const blob = await researchApi.downloadWorkflowArtifact(props.id, 'literature_review_final.md');
+    const markdownText = await blob.text();
+
+    // Convert markdown to simple styled HTML
+    const htmlContent = markdownToHtml(markdownText);
+
+    // Open a new window and trigger print (save as PDF)
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      // Fallback: download as .md if popup blocked
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'literature_review_final.md';
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to render, then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 400);
+    };
+  } catch {
+    // Silently handle
+  } finally {
+    downloadingPdf.value = false;
+  }
+}
+
+function markdownToHtml(md: string): string {
+  // Simple markdown to HTML conversion
+  let html = md
+    // Escape HTML
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Headers
+    .replace(/^##### (.+)$/gm, '<h5>$1</h5>')
+    .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Bold and italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Unordered lists
+    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    // Numbered lists
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    // Paragraphs (double newlines)
+    .replace(/\n\n/g, '</p><p>')
+    // Single newlines within paragraphs
+    .replace(/\n/g, '<br/>');
+
+  // Wrap consecutive <li> items in <ul>
+  html = html.replace(/(<li>.*?<\/li>)(?:<br\/>)?/g, '$1');
+  html = html.replace(/((?:<li>.*?<\/li>)+)/g, '<ul>$1</ul>');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Literature Review</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.8;
+      color: #1a1a1a;
+      max-width: 48rem;
+      margin: 2rem auto;
+      padding: 0 2rem;
+      font-size: 11pt;
+    }
+    h1 { font-size: 1.8em; margin: 1.5em 0 0.5em; font-weight: 700; color: #111; }
+    h2 { font-size: 1.4em; margin: 1.3em 0 0.4em; font-weight: 600; color: #222; border-bottom: 1px solid #e5e5e5; padding-bottom: 0.3em; }
+    h3 { font-size: 1.15em; margin: 1.1em 0 0.3em; font-weight: 600; color: #333; }
+    h4, h5 { font-size: 1em; margin: 1em 0 0.2em; font-weight: 600; color: #444; }
+    p { margin: 0.6em 0; }
+    ul { padding-left: 1.5em; margin: 0.5em 0; }
+    li { margin: 0.3em 0; }
+    strong { font-weight: 600; }
+    @media print {
+      body { margin: 0; padding: 1rem; font-size: 10pt; }
+      @page { margin: 2cm; }
+    }
+  </style>
+</head>
+<body>
+  <p>${html}</p>
+</body>
+</html>`;
+}
 </script>
 
 <style scoped>
@@ -252,6 +398,21 @@ const workspaceStatusClass = computed(() => {
 .workspace-status__title {
   font-size: 0.96rem;
   font-weight: 600;
+}
+
+.workspace-download-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.pipeline-error-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  align-items: flex-start;
 }
 
 @media (min-width: 960px) {

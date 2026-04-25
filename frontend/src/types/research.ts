@@ -87,6 +87,11 @@ export interface PendingApproval {
   approval_type: string | null;
   output_summary?: Record<string, unknown> | null;
   _source?: 'rest' | 'ws';
+  // Extra fields for special approval types
+  download_file?: string | null;
+  download_description?: string | null;
+  asreview_url?: string | null;
+  upload_description?: string | null;
 }
 
 export interface WorkflowEvent {

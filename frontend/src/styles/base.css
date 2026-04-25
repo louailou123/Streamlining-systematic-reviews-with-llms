@@ -184,6 +184,23 @@ textarea {
   display: grid;
   gap: 0.45rem;
   color: var(--app-text-soft);
+  max-height: 22rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-border-strong) transparent;
+}
+
+.result-summary-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.result-summary-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.result-summary-list::-webkit-scrollbar-thumb {
+  background: var(--app-border-strong);
+  border-radius: 4px;
 }
 
 .timeline-card {

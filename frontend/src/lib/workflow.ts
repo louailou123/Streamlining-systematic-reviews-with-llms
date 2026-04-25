@@ -105,8 +105,100 @@ export function describeOutputSummary(data?: Record<string, unknown> | null, lim
     .filter((entry): entry is string => Boolean(entry));
 }
 
+/**
+ * Expand specific keys (keywords, queries, criteria) to show ALL items
+ * instead of truncating. Used in approval cards where full visibility is needed.
+ */
+export function expandOutputSummary(data?: Record<string, unknown> | null): string[] {
+  if (!data) {
+    return [];
+  }
+
+  const expandKeys = new Set([
+    'keywords', 'search_queries', 'inclusion_criteria', 'exclusion_criteria',
+    'initial_questions', 'final_ranked_questions',
+  ]);
+  const skipKeys = new Set(['messages', 'logs', 'errors', 'user_feedback', 'current_approval_node', 'current_step']);
+  const lines: string[] = [];
+
+  for (const [key, value] of Object.entries(data)) {
+    if (skipKeys.has(key) || value === null || value === undefined || value === '') {
+      continue;
+    }
+
+    if (expandKeys.has(key)) {
+      // Show ALL items for these keys
+      if (Array.isArray(value)) {
+        lines.push(`${humanizeLabel(key)} (${value.length}):`);
+        for (const item of value) {
+          if (typeof item === 'string') {
+            lines.push(`  • ${item}`);
+          } else if (item && typeof item === 'object') {
+            const record = item as Record<string, unknown>;
+            const preferred = record.question ?? record.title ?? record.name ?? record.label;
+            if (typeof preferred === 'string') {
+              lines.push(`  • ${preferred}`);
+            } else {
+              lines.push(`  • ${JSON.stringify(item)}`);
+            }
+          } else {
+            lines.push(`  • ${String(item)}`);
+          }
+        }
+      } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // For dict-like keys (e.g. search_queries: {db_name: query})
+        const entries = Object.entries(value as Record<string, unknown>);
+        lines.push(`${humanizeLabel(key)} (${entries.length}):`);
+        for (const [subKey, subValue] of entries) {
+          lines.push(`  • ${humanizeLabel(subKey)}: ${String(subValue)}`);
+        }
+      } else {
+        const summary = summarizeValue(value);
+        if (summary) {
+          lines.push(`${humanizeLabel(key)}: ${summary}`);
+        }
+      }
+    } else {
+      // Show full content for all keys (since cards now have scroll)
+      if (Array.isArray(value) && value.length > 0) {
+        lines.push(`${humanizeLabel(key)} (${value.length}):`);
+        for (const item of value) {
+          if (typeof item === 'string') {
+            lines.push(`  • ${item}`);
+          } else if (item && typeof item === 'object') {
+            const record = item as Record<string, unknown>;
+            const preferred = record.question ?? record.title ?? record.name ?? record.label ?? record.description;
+            if (typeof preferred === 'string') {
+              lines.push(`  • ${preferred}`);
+            } else {
+              lines.push(`  • ${JSON.stringify(item)}`);
+            }
+          } else if (item !== null && item !== undefined) {
+            lines.push(`  • ${String(item)}`);
+          }
+        }
+      } else if (typeof value === 'string' && value.trim()) {
+        lines.push(`${humanizeLabel(key)}: ${value}`);
+      } else {
+        const summary = summarizeValue(value);
+        if (summary) {
+          lines.push(`${humanizeLabel(key)}: ${summary}`);
+        }
+      }
+    }
+  }
+
+  return lines;
+}
+
 export function summarizeOutputSummary(data?: Record<string, unknown> | null): string[] {
-  return describeOutputSummary(data, 4);
+  if (!data) {
+    return [];
+  }
+
+  // Since all pipeline cards now have scroll containers,
+  // always show the full expanded output for every key.
+  return expandOutputSummary(data);
 }
 
 export function deriveApprovalOutput(
@@ -245,6 +337,29 @@ function buildTimelineStatusCopy(
   }
 }
 
+/**
+ * Nodes that are utility/internal and should not appear in the pipeline timeline.
+ * These include tool execution nodes, internal LLM call nodes, and gate nodes.
+ */
+export const HIDDEN_NODE_NAMES = new Set([
+  'tool_node',
+  'tool_node_2',
+  'feasibility_llm_call',
+  'originality_llm_call',
+  'rank_questions_llm_call',
+]);
+
+function isHiddenNode(nodeName: string): boolean {
+  if (HIDDEN_NODE_NAMES.has(nodeName)) {
+    return true;
+  }
+  // Gate nodes (gate_*) are internal approval infrastructure
+  if (nodeName.startsWith('gate_')) {
+    return true;
+  }
+  return false;
+}
+
 export function buildTimelineItems(
   nodeExecutions: NodeExecution[],
   pendingApproval: PendingApproval | null,
@@ -254,6 +369,11 @@ export function buildTimelineItems(
   const byNode = new Map<string, NodeExecution[]>();
 
   for (const node of nodeExecutions) {
+    // Skip hidden utility/tool/gate nodes
+    if (isHiddenNode(node.node_name)) {
+      continue;
+    }
+
     const group = byNode.get(node.node_name) ?? [];
     group.push(node);
     byNode.set(node.node_name, group);
@@ -458,6 +578,7 @@ export function formatEventFeed(events: WorkflowEvent[]) {
                 : 'info',
         timestamp: event.timestamp,
         stepLabel: event.step_label,
+        nodeName: event.node_name,
         details:
           summaryLines.length > 0
             ? summaryLines

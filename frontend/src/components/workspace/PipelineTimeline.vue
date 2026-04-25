@@ -16,8 +16,22 @@
         <span class="timeline-marker" :class="markerClass(item)" />
       </template>
       <template #content="{ item }">
+        <AsreviewUploadCard
+          v-if="item.requiresApproval && isAsreviewType(item)"
+          :item="item"
+          :approval-type="resolveApprovalType(item)"
+          :output-summary="approvalOutput"
+          :action-loading="actionLoading"
+          :action-error="actionErrorTarget === 'approval' ? actionError : ''"
+          :asreview-url="asreviewUrl"
+          :download-description="downloadDescription"
+          :research-id="researchId"
+          @continue="$emit('continue')"
+          @upload="$emit('upload', $event)"
+          @download="$emit('download')"
+        />
         <ApprovalCard
-          v-if="item.requiresApproval"
+          v-else-if="item.requiresApproval"
           :item="item"
           :description="approvalDescription"
           :output-summary="approvalOutput"
@@ -49,11 +63,12 @@ import Timeline from 'primevue/timeline';
 import type { UiTimelineItem } from '@/types/research';
 import EmptyState from '@/components/common/EmptyState.vue';
 import ApprovalCard from './ApprovalCard.vue';
+import AsreviewUploadCard from './AsreviewUploadCard.vue';
 import ErrorCard from './ErrorCard.vue';
 import ResultCard from './ResultCard.vue';
 import StatusCard from './StatusCard.vue';
 
-defineProps<{
+const props = defineProps<{
   items: UiTimelineItem[];
   approvalDescription: string | null;
   approvalOutput: Record<string, unknown> | null;
@@ -62,14 +77,45 @@ defineProps<{
   actionError: string;
   actionErrorTarget: string;
   runtimeMessage: string | null;
+  approvalType: string | null;
+  asreviewUrl: string | null;
+  downloadDescription: string | null;
+  researchId: string;
 }>();
 
 defineEmits<{
   continue: [];
   improve: [];
   retry: [nodeExecutionId: string];
+  upload: [file: File];
+  download: [];
   'update:feedback': [value: string];
 }>();
+
+const ASREVIEW_TYPES = new Set(['download_and_continue', 'asreview_upload']);
+
+function isAsreviewType(item: UiTimelineItem) {
+  // Check if the pending approval type is an asreview variant
+  if (props.approvalType && ASREVIEW_TYPES.has(props.approvalType)) {
+    return true;
+  }
+  // Fallback: check by node name
+  return item.nodeName === 'llm_classify' || item.nodeName === 'asreview_screen';
+}
+
+function resolveApprovalType(item: UiTimelineItem) {
+  if (props.approvalType) {
+    return props.approvalType;
+  }
+  // Fallback by node name
+  if (item.nodeName === 'llm_classify') {
+    return 'download_and_continue';
+  }
+  if (item.nodeName === 'asreview_screen') {
+    return 'asreview_upload';
+  }
+  return 'node_approval';
+}
 
 function markerClass(item: UiTimelineItem) {
   if (item.isFailed) {

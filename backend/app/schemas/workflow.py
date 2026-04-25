@@ -89,3 +89,9 @@ class PendingApprovalResponse(BaseModel):
     step_label: Optional[str] = None
     description: Optional[str] = None
     approval_type: Optional[str] = None
+    output_summary: Optional[Dict[str, Any]] = None
+    # Extra fields for special approval types
+    download_file: Optional[str] = None
+    download_description: Optional[str] = None
+    asreview_url: Optional[str] = None
+    upload_description: Optional[str] = None

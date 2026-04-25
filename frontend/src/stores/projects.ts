@@ -52,6 +52,15 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
+  async function deleteProject(id: string) {
+    await researchApi.delete(id);
+    const index = items.value.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      items.value.splice(index, 1);
+      total.value = Math.max(0, total.value - 1);
+    }
+  }
+
   return {
     items,
     total,
@@ -62,5 +71,6 @@ export const useProjectsStore = defineStore('projects', () => {
     fetchProjects,
     createProject,
     upsertProject,
+    deleteProject,
   };
 });

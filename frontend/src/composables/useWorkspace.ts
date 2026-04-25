@@ -201,6 +201,25 @@ export function useWorkspace(researchId: string) {
     }
   }
 
+  async function handleRetryPipeline() {
+    if (actionLoading.value) {
+      return;
+    }
+
+    actionError.value = '';
+    actionErrorTarget.value = '';
+    actionLoading.value = 'retry:pipeline';
+
+    try {
+      await researchApi.retryPipeline(researchId);
+      await loadInitialData();
+    } catch (error) {
+      actionError.value = getErrorMessage(error, 'Unable to retry the pipeline right now.');
+    } finally {
+      actionLoading.value = '';
+    }
+  }
+
   async function downloadArtifact(artifactId: string, filename: string) {
     const blob = await researchApi.downloadArtifact(artifactId);
     const url = URL.createObjectURL(blob);
@@ -209,6 +228,36 @@ export function useWorkspace(researchId: string) {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleUploadAsreview(file: File) {
+    if (actionLoading.value) {
+      return;
+    }
+
+    const approvalSnapshot = await getActionableApproval();
+    if (!approvalSnapshot?.node_execution_id) {
+      actionErrorTarget.value = 'approval';
+      actionError.value = 'This approval is still syncing. Try again in a moment.';
+      return;
+    }
+
+    actionError.value = '';
+    actionErrorTarget.value = '';
+    actionLoading.value = 'upload';
+    workflowStore.setPendingApproval(null);
+    setOptimisticAction(approvalSnapshot.node_execution_id, 'continue');
+
+    try {
+      await researchApi.uploadAsreviewFile(researchId, approvalSnapshot.node_execution_id, file);
+    } catch (error) {
+      clearOptimisticAction(approvalSnapshot.node_execution_id);
+      workflowStore.setPendingApproval(approvalSnapshot);
+      actionErrorTarget.value = 'approval';
+      actionError.value = getErrorMessage(error, 'Unable to upload the file right now.');
+    } finally {
+      actionLoading.value = '';
+    }
   }
 
   async function openExecutionLog() {
@@ -231,6 +280,10 @@ export function useWorkspace(researchId: string) {
   });
 
   const runtimeMessage = computed(() => null);
+
+  const approvalType = computed(() => pendingApproval.value?.approval_type || null);
+  const asreviewUrl = computed(() => pendingApproval.value?.asreview_url || null);
+  const downloadDescription = computed(() => pendingApproval.value?.download_description || null);
 
   const workspaceNarrative = computed(() =>
     buildWorkspaceNarrative({
@@ -318,7 +371,12 @@ export function useWorkspace(researchId: string) {
     handleContinue,
     handleImprove,
     handleRetry,
+    handleRetryPipeline,
+    handleUploadAsreview,
     downloadArtifact,
     openExecutionLog,
+    approvalType,
+    asreviewUrl,
+    downloadDescription,
   };
 }

@@ -185,6 +185,7 @@ class WorkflowRunner:
         self.checkpointer = SqliteSaver(self.conn)
         self.checkpointer.setup()
         self.thread_id = f"research-{research_id}-run-{run_id}"
+        self._last_node_name: str = ""  # Track last node for error attribution
         
         # HTML Logger (wrapped to survive hot-reload I/O errors)
         try:
@@ -234,6 +235,9 @@ class WorkflowRunner:
                 description=e.description,
                 approval_id=approval_id,
                 node_execution_id=node_execution_id,
+                approval_type=e.approval_type,
+                output_summary=e.output_summary,
+                extra_data=e.extra_data,
             )
             raise
 
@@ -256,7 +260,7 @@ class WorkflowRunner:
             error_msg = str(e)
             error_tb = traceback.format_exc()
             self.events.workflow_failed(error_msg)
-            self._notify_db("run_failed", error=error_msg, traceback=error_tb)
+            self._notify_db("run_failed", error=error_msg, traceback=error_tb, failed_node=self._last_node_name)
             self._safe_log('log_error', e)
             self._safe_log('close')
             raise
@@ -297,6 +301,9 @@ class WorkflowRunner:
                 description=e.description,
                 approval_id=approval_id,
                 node_execution_id=node_execution_id,
+                approval_type=e.approval_type,
+                output_summary=e.output_summary,
+                extra_data=e.extra_data,
             )
             raise
 
@@ -317,7 +324,7 @@ class WorkflowRunner:
             error_msg = str(e)
             error_tb = traceback.format_exc()
             self.events.workflow_failed(error_msg)
-            self._notify_db("run_failed", error=error_msg, traceback=error_tb)
+            self._notify_db("run_failed", error=error_msg, traceback=error_tb, failed_node=self._last_node_name)
             self._safe_log('log_error', e)
             self._safe_log('close')
             raise
@@ -364,6 +371,12 @@ class WorkflowRunner:
                                     node_name=interrupt_data["node_name"],
                                     step_label=interrupt_data.get("step_label", ""),
                                     description=interrupt_data.get("description", ""),
+                                    approval_type=interrupt_data.get("approval_type", "node_approval"),
+                                    output_summary=interrupt_data.get("output_summary"),
+                                    extra_data={k: v for k, v in interrupt_data.items() if k not in {
+                                        "type", "node_name", "step_label", "description",
+                                        "approval_type", "output_summary",
+                                    }},
                                 )
                             
                             # Legacy interrupt (ASReview file upload, etc.)
@@ -373,6 +386,7 @@ class WorkflowRunner:
                         if node_name in GATE_NODE_NAMES:
                             continue
 
+                        self._last_node_name = node_name  # Track for error attribution
                         step_label = NODE_STEP_MAP.get(node_name, "")
                         description = NODE_DESCRIPTIONS.get(node_name, node_name)
 
@@ -471,8 +485,19 @@ class GraphInterruptException(Exception):
 
 class NodeApprovalInterrupt(Exception):
     """Raised when a per-node approval gate triggers an interrupt."""
-    def __init__(self, node_name: str, step_label: str = "", description: str = ""):
+    def __init__(
+        self,
+        node_name: str,
+        step_label: str = "",
+        description: str = "",
+        approval_type: str = "node_approval",
+        output_summary: dict | None = None,
+        extra_data: dict | None = None,
+    ):
         self.node_name = node_name
         self.step_label = step_label
         self.description = description
+        self.approval_type = approval_type
+        self.output_summary = output_summary or {}
+        self.extra_data = extra_data or {}
         super().__init__(f"Node approval required: {node_name}")

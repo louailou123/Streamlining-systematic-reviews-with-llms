@@ -130,19 +130,23 @@ class WorkflowService:
         """
         settings = get_settings()
 
-        # Find the paused run
+        # Find the paused or failed run (retry works on failed runs too)
+        valid_statuses = ["paused"]
+        if action == "retry":
+            valid_statuses.append("failed")
+
         result = await self.db.execute(
             select(WorkflowRun)
             .where(
                 WorkflowRun.research_id == research.id,
-                WorkflowRun.status == "paused",
+                WorkflowRun.status.in_(valid_statuses),
             )
             .order_by(desc(WorkflowRun.run_number))
             .limit(1)
         )
         run = result.scalar_one_or_none()
         if not run:
-            raise ValueError("No paused run found to resume")
+            raise ValueError("No paused or failed run found to resume")
 
         work_dir = str(
             Path(settings.STORAGE_LOCAL_ROOT) / str(research.id) / f"run-{run.run_number}"
@@ -213,6 +217,72 @@ class WorkflowService:
         loop = asyncio.get_running_loop()
 
         # Submit resume to thread pool
+        _executor.submit(
+            _resume_workflow_sync,
+            loop,
+            str(research.id),
+            str(run.id),
+            work_dir,
+            research.topic,
+            research.timeframe,
+            db_list,
+            resume_value,
+        )
+
+    async def retry_failed_run(
+        self,
+        research: ResearchHistory,
+    ) -> None:
+        """
+        Retry a failed pipeline from its last checkpoint.
+        Simply finds the failed run, resets statuses, and resumes.
+        """
+        settings = get_settings()
+
+        # Find the failed run
+        result = await self.db.execute(
+            select(WorkflowRun)
+            .where(
+                WorkflowRun.research_id == research.id,
+                WorkflowRun.status == "failed",
+            )
+            .order_by(desc(WorkflowRun.run_number))
+            .limit(1)
+        )
+        run = result.scalar_one_or_none()
+        if not run:
+            raise ValueError("No failed run found to retry")
+
+        work_dir = str(
+            Path(settings.STORAGE_LOCAL_ROOT) / str(research.id) / f"run-{run.run_number}"
+        )
+
+        # Reset statuses
+        run.status = "running"
+        run.error_message = None
+        run.error_traceback = None
+        run.completed_at = None
+        research.status = "running"
+        research.latest_error = None
+
+        # Add timeline message
+        msg = ResearchMessage(
+            research_id=research.id,
+            role="user",
+            content="🔁 Retrying pipeline from last checkpoint",
+            message_type="node_event",
+            metadata_extra={"action": "retry"},
+        )
+        self.db.add(msg)
+
+        await self.db.commit()
+
+        # Parse databases and resume
+        db_list = _parse_databases(research.databases)
+        loop = asyncio.get_running_loop()
+
+        resume_value = {"action": "retry"}
+
         _executor.submit(
             _resume_workflow_sync,
             loop,
@@ -346,6 +416,15 @@ def _run_workflow_sync(
         db_callbacks={
             "node_completed": notify_node_completed,
             "node_approval_required": notify_node_approval,
+            "run_failed": lambda **kwargs: asyncio.run_coroutine_threadsafe(
+                _persist_failure(
+                    research_id=research_id,
+                    run_id=run_id,
+                    error_msg=kwargs.get('error', ''),
+                    error_tb=kwargs.get('traceback', ''),
+                    failed_node=kwargs.get('failed_node', ''),
+                ), loop
+            ),
         },
     )
 
@@ -377,13 +456,7 @@ def _run_workflow_sync(
             error_tb = traceback.format_exc()
             print(f"[WorkflowRunner] FAILED: {error_msg}")
             print(error_tb)
-
-            asyncio.run_coroutine_threadsafe(_persist_failure(
-                research_id=research_id,
-                run_id=run_id,
-                error_msg=error_msg,
-                error_tb=error_tb,
-            ), loop)
+            # Persistence is handled by the run_failed callback in db_callbacks
 
 
 def _resume_workflow_sync(
@@ -417,6 +490,15 @@ def _resume_workflow_sync(
         db_callbacks={
             "node_completed": notify_node_completed,
             "node_approval_required": notify_node_approval,
+            "run_failed": lambda **kwargs: asyncio.run_coroutine_threadsafe(
+                _persist_failure(
+                    research_id=research_id,
+                    run_id=run_id,
+                    error_msg=kwargs.get('error', ''),
+                    error_tb=kwargs.get('traceback', ''),
+                    failed_node=kwargs.get('failed_node', ''),
+                ), loop
+            ),
         },
     )
 
@@ -446,13 +528,7 @@ def _resume_workflow_sync(
             error_tb = traceback.format_exc()
             print(f"[WorkflowRunner] Resume FAILED: {error_msg}")
             print(error_tb)
-
-            asyncio.run_coroutine_threadsafe(_persist_failure(
-                research_id=research_id,
-                run_id=run_id,
-                error_msg=error_msg,
-                error_tb=error_tb,
-            ), loop)
+            # Persistence is handled by the run_failed callback in db_callbacks
 
 
 # ── Database persistence helpers ───────────────────────────
@@ -466,6 +542,9 @@ async def _persist_node_approval(
     description: str = "",
     approval_id: str | None = None,
     node_execution_id: str | None = None,
+    approval_type: str = "node_approval",
+    output_summary: dict | None = None,
+    extra_data: dict | None = None,
 ) -> None:
     """Persist per-node approval pause to database."""
     from app.workflow.runner import _serialize_state_snapshot
@@ -475,6 +554,7 @@ async def _persist_node_approval(
 
         async with AsyncSessionLocal() as db:
             # Create node execution record with waiting_for_approval status
+            safe_output = _serialize_state_snapshot(output_summary) if output_summary else {}
             node_exec = NodeExecution(
                 id=node_execution_uuid,
                 run_id=uuid.UUID(run_id),
@@ -482,6 +562,7 @@ async def _persist_node_approval(
                 step_label=step_label,
                 status="waiting_for_approval",
                 node_order=_node_counters.get(run_id, 0),
+                output_summary=safe_output,
             )
             db.add(node_exec)
             await db.flush()  # Get the ID
@@ -507,19 +588,24 @@ async def _persist_node_approval(
                 research.latest_summary = f"Waiting for approval: {description}"
 
             # Create generic approval record
+            request_data = {
+                "node_name": node_name,
+                "step_label": step_label,
+                "description": description,
+                "node_execution_id": str(node_exec.id),
+                "approval_type": approval_type,
+            }
+            if extra_data:
+                request_data.update(extra_data)
+
             approval = Approval(
                 id=approval_uuid,
                 run_id=uuid.UUID(run_id),
                 research_id=uuid.UUID(research_id),
                 node_name=node_name,
-                approval_type="node_approval",
+                approval_type=approval_type,
                 status="pending",
-                request_data={
-                    "node_name": node_name,
-                    "step_label": step_label,
-                    "description": description,
-                    "node_execution_id": str(node_exec.id),
-                },
+                request_data=request_data,
             )
             db.add(approval)
 
@@ -534,7 +620,7 @@ async def _persist_node_approval(
                     "step_label": step_label,
                     "description": description,
                     "node_execution_id": str(node_exec.id),
-                    "approval_type": "node_approval",
+                    "approval_type": approval_type,
                 },
             )
             db.add(msg)
@@ -547,7 +633,8 @@ async def _persist_node_approval(
             description=description,
             approval_id=str(approval_uuid),
             node_execution_id=str(node_execution_uuid),
-            approval_type="node_approval",
+            approval_type=approval_type,
+            output_summary=_serialize_state_snapshot(output_summary) if output_summary else None,
         )
     except Exception as e:
         print(f"[ERROR] Failed to persist node approval for {node_name}: {e}")
@@ -706,8 +793,9 @@ async def _persist_failure(
     run_id: str,
     error_msg: str,
     error_tb: str,
+    failed_node: str = "",
 ) -> None:
-    """Persist pipeline failure."""
+    """Persist pipeline failure, including a failed NodeExecution if the node is known."""
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(WorkflowRun).where(WorkflowRun.id == uuid.UUID(run_id))
@@ -727,12 +815,30 @@ async def _persist_failure(
             research.status = "failed"
             research.latest_error = error_msg
 
+        # Create a failed NodeExecution so the frontend can show ErrorCard with retry
+        if failed_node:
+            from app.workflow.engine import NODE_STEP_MAP, NODE_DESCRIPTIONS
+            _node_counters[run_id] = _node_counters.get(run_id, 0) + 1
+            node_exec = NodeExecution(
+                run_id=uuid.UUID(run_id),
+                node_name=failed_node,
+                step_label=NODE_STEP_MAP.get(failed_node, ""),
+                status="failed",
+                duration_ms=0,
+                output_summary={},
+                error_message=error_msg,
+                logs={"logs": [], "error": error_msg},
+                node_order=_node_counters.get(run_id, 0),
+                completed_at=datetime.now(timezone.utc),
+            )
+            db.add(node_exec)
+
         msg = ResearchMessage(
             research_id=uuid.UUID(research_id),
             role="system",
             content=f"✗ Pipeline failed: {error_msg}",
             message_type="error",
-            metadata_extra={"error": error_msg},
+            metadata_extra={"error": error_msg, "failed_node": failed_node},
         )
         db.add(msg)
 

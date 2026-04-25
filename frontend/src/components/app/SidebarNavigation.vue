@@ -35,25 +35,67 @@
           {{ projectsStore.error }}
         </Message>
         <div v-else class="sidebar-projects__list">
-          <RouterLink
+          <div
             v-for="project in filteredProjects"
             :key="project.id"
-            :to="`/research/${project.id}`"
-            class="sidebar-project-link"
-            :class="{ 'is-active': activeProjectId === project.id }"
+            class="sidebar-project-wrapper"
           >
-            <div class="sidebar-project__body">
-              <div class="sidebar-project__row">
-                <span class="sidebar-project__title">
-                  {{ project.title }}
-                </span>
-                <StatusBadge :status="project.status" />
+            <!-- Confirm delete overlay -->
+            <div v-if="confirmDeleteId === project.id" class="sidebar-project-confirm">
+              <span class="sidebar-project-confirm__text">Delete this research?</span>
+              <div class="sidebar-project-confirm__actions">
+                <Button
+                  label="Delete"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  size="small"
+                  :loading="deletingId === project.id"
+                  @click.stop.prevent="executeDelete(project.id)"
+                />
+                <Button
+                  label="Cancel"
+                  severity="secondary"
+                  size="small"
+                  @click.stop.prevent="confirmDeleteId = null"
+                />
               </div>
-              <p class="sidebar-project__copy">
-                {{ project.latest_summary || project.topic }}
-              </p>
             </div>
-          </RouterLink>
+
+            <!-- Normal project card -->
+            <RouterLink
+              v-else
+              :to="`/research/${project.id}`"
+              class="sidebar-project-link"
+              :class="{ 'is-active': activeProjectId === project.id }"
+            >
+              <div class="sidebar-project__body">
+                <div class="sidebar-project__row">
+                  <span class="sidebar-project__title">
+                    {{ project.title }}
+                  </span>
+                  <div class="sidebar-project__actions">
+                    <StatusBadge :status="project.status" />
+                    <Button
+                      icon="pi pi-trash"
+                      severity="danger"
+                      text
+                      rounded
+                      size="small"
+                      class="sidebar-project__delete"
+                      aria-label="Delete project"
+                      @click.stop.prevent="confirmDeleteId = project.id"
+                    />
+                  </div>
+                </div>
+                <p class="sidebar-project__copy">
+                  {{ project.latest_summary || project.topic }}
+                </p>
+                <span class="sidebar-project__date">
+                  {{ formatRelativeDate(project.updated_at) }}
+                </span>
+              </div>
+            </RouterLink>
+          </div>
 
           <EmptyState
             v-if="!filteredProjects.length && !projectsStore.loading"
@@ -127,6 +169,8 @@ const authStore = useAuthStore();
 const projectsStore = useProjectsStore();
 const { resolvedTheme, toggleTheme } = useTheme();
 const query = ref('');
+const confirmDeleteId = ref<string | null>(null);
+const deletingId = ref<string | null>(null);
 
 onMounted(() => {
   if (authStore.isAuthenticated) {
@@ -159,6 +203,37 @@ const themeLabel = computed(() =>
 const themeIcon = computed(() =>
   resolvedTheme.value === 'dark' ? 'pi pi-sun' : 'pi pi-moon',
 );
+
+function formatRelativeDate(dateStr: string) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+async function executeDelete(projectId: string) {
+  deletingId.value = projectId;
+  try {
+    await projectsStore.deleteProject(projectId);
+    confirmDeleteId.value = null;
+    // If we deleted the active project, go to dashboard
+    if (props.activeProjectId === projectId) {
+      await router.push('/');
+    }
+  } catch {
+    // keep confirm state visible
+  } finally {
+    deletingId.value = null;
+  }
+}
 
 async function handleLogout() {
   await authStore.logout();
@@ -253,6 +328,14 @@ async function navigateToDashboard() {
   overflow-x: hidden;
   overflow-y: auto;
   padding-right: 0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-border-strong) transparent;
+}
+
+.sidebar-project-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .sidebar-project__row {
@@ -262,6 +345,22 @@ async function navigateToDashboard() {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.sidebar-project__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.sidebar-project__delete {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar-project-link:hover .sidebar-project__delete {
+  opacity: 1;
 }
 
 .sidebar-project__body {
@@ -280,14 +379,51 @@ async function navigateToDashboard() {
 }
 
 .sidebar-project__copy {
-  margin: 0.45rem 0 0;
+  margin: 0.4rem 0 0;
   color: var(--app-text-soft);
-  font-size: 0.84rem;
-  line-height: 1.55;
+  font-size: 0.82rem;
+  line-height: 1.5;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.sidebar-project__date {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--app-subtle);
+  letter-spacing: 0.01em;
+}
+
+/* Confirm delete overlay */
+.sidebar-project-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  background: rgba(220, 38, 38, 0.05);
+  animation: fade-in 0.15s ease;
+}
+
+.sidebar-project-confirm__text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.sidebar-project-confirm__actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .sidebar-bottom {
@@ -359,6 +495,13 @@ async function navigateToDashboard() {
 :deep(.sidebar-primary-button.p-button),
 :deep(.sidebar-theme-button.p-button) {
   width: 100%;
+}
+
+:deep(.sidebar-project__delete.p-button) {
+  width: 1.75rem;
+  height: 1.75rem;
+  min-height: 0;
+  padding: 0;
 }
 
 :global(html.app-dark) .brand-mark {

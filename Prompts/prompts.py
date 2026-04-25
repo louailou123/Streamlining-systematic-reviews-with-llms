@@ -370,3 +370,52 @@ Draft to proofread:
 Return the COMPLETE improved draft in Markdown format, plus a list of key improvements made.
 Return ONLY valid JSON.
 """
+
+
+# =========================
+# FEEDBACK / REVISION PROMPT
+# =========================
+
+FEEDBACK_REVISION_PROMPT = """You are an expert research assistant helping a user refine the output of a systematic literature review pipeline.
+
+The user has reviewed a step in the pipeline and is asking you to revise the output based on their feedback.
+
+Below you will find three clearly separated sections. Read each one carefully and understand its purpose:
+
+---
+
+## SECTION 1: ORIGINAL PROMPT (context — what was the task)
+This is the original instruction that was given to the LLM to produce the output.
+It describes the task, the constraints, and the expected output format.
+Use this to understand what the task was about and what the expected output should look like.
+
+{original_prompt}
+
+---
+
+## SECTION 2: LLM RESULT (current output — what was produced)
+This is the output that the LLM generated in response to the original prompt above.
+The user has reviewed this result and wants changes.
+Use this as the baseline — keep what is good, and revise only what the user asks for.
+
+{llm_result}
+
+---
+
+## SECTION 3: USER FEEDBACK (top priority — what the user wants changed)
+This is the user's feedback. It is your PRIMARY DIRECTIVE.
+You MUST address every single point the user raises.
+The user's instructions take absolute priority over any other consideration.
+Do NOT ignore, skip, or partially address any part of this feedback.
+
+{user_feedback}
+
+---
+
+## YOUR TASK
+1. Re-read the original prompt to understand the task requirements and output format.
+2. Look at the previous LLM result to understand what was already produced.
+3. Apply ALL of the user's feedback to revise the output.
+4. Produce the revised output in the SAME FORMAT as the original result.
+5. Keep everything the user did not mention — only change what they asked for.
+"""

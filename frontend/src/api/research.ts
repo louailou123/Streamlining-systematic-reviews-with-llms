@@ -26,6 +26,10 @@ export const researchApi = {
     return response.data;
   },
 
+  async delete(id: string): Promise<void> {
+    await client.delete(`/research/${id}`);
+  },
+
   async getMessages(id: string, skip = 0, limit = 200): Promise<ResearchMessage[]> {
     const response = await client.get<ResearchMessage[]>(`/research/${id}/messages`, {
       params: { skip, limit },
@@ -85,6 +89,11 @@ export const researchApi = {
     return response.data;
   },
 
+  async retryPipeline(researchId: string) {
+    const response = await client.post(`/workflow/${researchId}/retry`);
+    return response.data;
+  },
+
   async downloadArtifact(artifactId: string): Promise<Blob> {
     const response = await client.get(`/artifacts/${artifactId}/download`, {
       responseType: 'blob',
@@ -97,5 +106,23 @@ export const researchApi = {
       responseType: 'blob',
     });
     return URL.createObjectURL(response.data);
+  },
+
+  async uploadAsreviewFile(researchId: string, nodeExecutionId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post(
+      `/workflow/${researchId}/nodes/${nodeExecutionId}/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  },
+
+  async downloadWorkflowArtifact(researchId: string, filename: string): Promise<Blob> {
+    const response = await client.get(`/artifacts/${researchId}/by-name/${filename}`, {
+      responseType: 'blob',
+    });
+    return response.data;
   },
 };

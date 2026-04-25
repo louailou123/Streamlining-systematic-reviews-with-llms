@@ -10,6 +10,7 @@ import re
 import time
 import subprocess
 import sys
+import os
 from typing import Dict, Any, List, Tuple
 from pathlib import Path
 from difflib import SequenceMatcher
@@ -456,17 +457,75 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
     ASReview human-in-the-loop screening step.
 
     Flow:
-      1. Prepare an ASReview-compatible CSV import file.
-      2. Auto-launch ASReview LAB in the browser.
-      3. Pause (interrupt) — user screens papers in ASReview.
-      4. On resume: user provides path to the exported ASReview result CSV.
-      5. Build initial_dataset.csv keeping only rows where asreview_label == 1,
-         while preserving richer metadata headers from the source dataset.
+      1. Check if an uploaded ASReview export file exists (resume path).
+         If yes, process it and create initial_dataset.csv.
+      2. If no upload yet: Prepare the ASReview-compatible CSV import file,
+         auto-launch ASReview LAB, and return state.
+         The approval gate (gate_asreview) will pause the pipeline and show
+         the upload UI. When resumed, this node runs again with the uploaded file.
     """
-    from langgraph.types import interrupt
-    import webbrowser
+    import glob
 
     logs = list(state.get("logs", []))
+
+    # ── RESUME PATH: Check if an ASReview export file was uploaded ──
+    # Look for uploaded export files in the current directory
+    uploaded_exports = [
+        f for f in glob.glob("asreview_export*.*")
+        if Path(f).exists() and Path(f).stat().st_size > 0
+    ]
+    # Also check for any CSV uploaded through the gate system
+    if not uploaded_exports:
+        uploaded_exports = [
+            f for f in glob.glob("*.csv")
+            if "asreview_export" in f.lower() or "asreview_result" in f.lower()
+        ]
+
+    if uploaded_exports:
+        export_path = uploaded_exports[0]
+        logs.append(f"[ASReview] Found uploaded export file: {export_path}")
+
+        try:
+            asreview_export_local = "asreview_export.csv"
+            initial_dataset_file = "initial_dataset.csv"
+
+            export_fields, export_rows = _read_csv(export_path)
+            # If the uploaded file is not already named asreview_export.csv, copy it
+            if export_path != asreview_export_local:
+                _write_csv(asreview_export_local, export_fields, export_rows)
+
+            rich_source_file = _pick_best_rich_source(state)
+
+            initial_dataset_file = build_initial_dataset_from_asreview_export(
+                asreview_export_file=asreview_export_local,
+                rich_source_file=rich_source_file,
+                output_file=initial_dataset_file,
+            )
+
+            _, initial_rows = _read_csv(initial_dataset_file)
+
+            msg = (
+                f"[ASReview] Processed export from {export_path}. "
+                f"Generated {initial_dataset_file} with {len(initial_rows)} included papers "
+                f"(asreview_label == 1), preserving enriched headers from {rich_source_file}."
+            )
+            print(msg)
+            logs.append(msg)
+
+            return {
+                "screened_human_csv": asreview_export_local,
+                "asreview_screened_csv": asreview_export_local,
+                "initial_dataset_csv": initial_dataset_file,
+                "logs": logs,
+            }
+
+        except Exception as e:
+            msg = f"[ASReview] ERROR processing export file: {e}"
+            print(msg)
+            logs.append(msg)
+            return {"logs": logs}
+
+    # ── FIRST RUN: Prepare import file and launch ASReview ──
 
     # 1. Find the best available input CSV
     llm_csv = state.get("screened_llm_csv", "screened_llm_dataset.csv")
@@ -569,112 +628,39 @@ def asreview_screen_node(state: LiRAState) -> Dict[str, Any]:
     logs.append(msg)
 
     # 3. Auto-launch ASReview LAB
-    print("[ASReview] Starting ASReview LAB...")
+    asreview_port = os.environ.get("ASREVIEW_PORT", "5001")
+    print(f"[ASReview] Starting ASReview LAB on port {asreview_port}...")
     try:
         subprocess.Popen(
-            [sys.executable, "-m", "asreview", "lab", "--host", "0.0.0.0", "--port", "5001"],
+            [sys.executable, "-m", "asreview", "lab", "--host", "0.0.0.0", "--port", asreview_port],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         time.sleep(3)
-        logs.append("[ASReview] ASReview LAB launched on port 5001")
+        asreview_url = f"http://localhost:{asreview_port}"
+        logs.append(f"[ASReview] ASReview LAB launched at {asreview_url}")
     except Exception as e:
         warn = f"[ASReview] WARNING: Could not auto-start ASReview LAB: {e}"
         print(warn)
         logs.append(warn)
+        asreview_url = f"http://localhost:{asreview_port}"
 
-    # 4. Print instructions and pause
     import_path = str(Path(asreview_import).resolve())
-    instructions = (
-        f"\n{'='*72}\n"
-        f"  HUMAN-IN-THE-LOOP: ASReview Manual Screening\n"
-        f"{'='*72}\n\n"
-        f"  ASReview LAB has been opened automatically.\n\n"
-        f"  Steps:\n"
-        f"    1. In ASReview LAB, create a new project and import:\n"
-        f"         {import_path}\n"
-        f"    2. Screen the papers using ASReview's active learning.\n"
-        f"    3. When finished, download/export the result as a CSV file.\n"
-        f"    4. Come back here and provide the FULL PATH to that CSV file.\n\n"
-        f"  The exported CSV must contain an 'asreview_label' column.\n"
-        f"  The pipeline will keep only papers where asreview_label == 1\n"
-        f"  to create initial_dataset.csv.\n\n"
+
+    msg = (
+        f"[ASReview] Import file ready at: {import_path}\n"
+        f"  ASReview LAB: {asreview_url}\n"
         f"  Papers to screen: {total}\n"
         f"  LLM prior included: {included_count}\n"
-        f"  LLM prior excluded: {excluded_count}\n"
-        f"{'='*72}\n"
+        f"  LLM prior excluded: {excluded_count}"
     )
-    print(instructions)
+    print(msg)
+    logs.append(msg)
 
-    user_response = interrupt(
-        {
-            "message": (
-                "ASReview screening required. Screen papers in ASReview LAB, "
-                "export the result CSV, then provide the file path to resume."
-            ),
-            "asreview_import_file": import_path,
-            "asreview_url": "http://localhost:5001",
-            "total_papers": total,
-            "llm_prior_included": included_count,
-            "llm_prior_excluded": excluded_count,
-        }
-    )
-
-    # 5. Process ASReview result CSV and preserve rich headers
-    export_path = None
-    if isinstance(user_response, dict):
-        export_path = user_response.get("output_file") or user_response.get("export_file")
-    elif isinstance(user_response, str):
-        export_path = user_response.strip()
-
-    if not export_path:
-        msg = "[ASReview] ERROR: No file path was provided."
-        print(msg)
-        logs.append(msg)
-        return {"logs": logs}
-
-    export_path = str(export_path).strip().strip('"').strip("'")
-
-    if not Path(export_path).exists():
-        msg = f"[ASReview] ERROR: File not found: {export_path}"
-        print(msg)
-        logs.append(msg)
-        return {"logs": logs}
-
-    try:
-        asreview_export_local = "asreview_export.csv"
-        initial_dataset_file = "initial_dataset.csv"
-
-        export_fields, export_rows = _read_csv(export_path)
-        _write_csv(asreview_export_local, export_fields, export_rows)
-
-        rich_source_file = _pick_best_rich_source(state)
-
-        initial_dataset_file = build_initial_dataset_from_asreview_export(
-            asreview_export_file=asreview_export_local,
-            rich_source_file=rich_source_file,
-            output_file=initial_dataset_file,
-        )
-
-        _, initial_rows = _read_csv(initial_dataset_file)
-
-        msg = (
-            f"[ASReview] Loaded export from {export_path}. "
-            f"Generated {initial_dataset_file} with {len(initial_rows)} included papers "
-            f"(asreview_label == 1), preserving enriched headers from {rich_source_file}."
-        )
-        print(msg)
-        logs.append(msg)
-
-        return {
-            "screened_human_csv": asreview_export_local,
-            "asreview_screened_csv": asreview_export_local,
-            "initial_dataset_csv": initial_dataset_file,
-            "logs": logs,
-        }
-
-    except Exception as e:
-        msg = f"[ASReview] ERROR processing export file: {e}"
-        print(msg)
-        logs.append(msg)
-        return {"logs": logs}
+    # Return state — the gate_asreview will pause the pipeline
+    # and show the upload UI to the user
+    return {
+        "screened_llm_csv": state.get("screened_llm_csv"),
+        "logs": logs,
+        "current_step": "Step 3.c — ASReview Screening",
+    }
